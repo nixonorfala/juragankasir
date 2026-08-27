@@ -561,6 +561,31 @@ export default function POS() {
       fetchProducts(storeId)
       if (activeShift) fetchHistory(storeId, userName, activeShift.id)
 
+      // 👉 KIRIM NOTIFIKASI TELEGRAM OTOMATIS KE DATABASE STORE
+      try {
+        const { data: storeData } = await supabase
+          .from('stores')
+          .select('telegram_chat_id, name')
+          .eq('id', storeId)
+          .single()
+
+        if (storeData && storeData.telegram_chat_id) {
+          const itemsText = cart.map(i => `- ${i.quantity}x ${i.name}`).join('\n')
+          const message = `🔔 *TRANSAKSI BERHASIL* 🔔\n\n🏪 Toko: ${storeData.name}\n💰 Total: Rp ${total.toLocaleString('id-ID')}\n💳 Metode: ${paymentMethod.toUpperCase()}\n\n*Item Pesanan:*\n${itemsText}`
+
+          await fetch('/api/telegram', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: storeData.telegram_chat_id,
+              message: message
+            })
+          })
+        }
+      } catch (tgError) {
+        console.error('Gagal kirim notifikasi Telegram:', tgError)
+      }
+
       setSelectedReceipt({
         id: trxData.id,
         cashier_name: userName,
