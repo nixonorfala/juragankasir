@@ -21,7 +21,8 @@ export default function RegisterOwner() {
     namaPemilik: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    kodeReferral: ''
   })
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -54,20 +55,23 @@ export default function RegisterOwner() {
       const randomSuffix = Math.floor(100 + Math.random() * 900)
       slug = `${slug}-${randomSuffix}`
 
-      // 3. Siapkan Tanggal Expired (Hari Ini + 7 Hari)
+      // 3. AMAN: Set Trial Awal 7 Hari (Tidak langsung 1 bulan gratis agar terhindar dari kecolongan)
       const trialDays = 7;
       const today = new Date();
       const expiredDate = new Date(today.getTime() + (trialDays * 24 * 60 * 60 * 1000));
       const formattedExpiredDate = expiredDate.toISOString();
 
-      // 4. Simpan Data Toko Baru & Masa Aktif (Menyesuaikan kolom trial_ends_at di Supabase)
+      const cleanReferralCode = formData.kodeReferral.trim().toUpperCase()
+
+      // 4. Simpan Data Toko Baru dengan Status Trial
       const { data: storeData, error: storeError } = await supabase
         .from('stores')
         .insert([{ 
            name: formData.namaToko, 
            slug: slug,
            subscription_status: 'trial',
-           trial_ends_at: formattedExpiredDate
+           trial_ends_at: formattedExpiredDate,
+           referred_by: cleanReferralCode || null
         }])
         .select()
         .single()
@@ -101,7 +105,6 @@ export default function RegisterOwner() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
         <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl text-center">
-          {/* LOGO DI LAYAR SUKSES */}
           <div className="flex justify-center mb-6">
             <Image 
               src="/logo-utama.png" 
@@ -116,7 +119,7 @@ export default function RegisterOwner() {
             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Toko Berhasil Dibuat!</h2>
-          <p className="text-gray-600 text-sm mb-6">Masa Trial 7 Hari lu sudah aktif. Berikut adalah Kode Merchant toko lu yang akan digunakan kasir untuk login:</p>
+          <p className="text-gray-600 text-sm mb-6">Masa Trial 7 Hari lu sudah aktif. Hubungi sales atau admin untuk upgrade paket (1, 3, 6 Bulan, atau 1 Tahun). Kode Merchant lu:</p>
           
           <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl mb-6">
             <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-1">Kode Merchant / Toko</p>
@@ -138,7 +141,6 @@ export default function RegisterOwner() {
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4 py-10">
       <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl">
         
-        {/* LOGO DI ATAS FORM REGISTER */}
         <div className="flex justify-center mb-6">
           <Image 
             src="/logo-utama.png" 
@@ -168,6 +170,15 @@ export default function RegisterOwner() {
               type="text" name="namaToko" value={formData.namaToko} onChange={handleChange} required
               className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-gray-900 text-sm"
               placeholder="Contoh: Kopi Senja"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Kode Referral Sales (Opsional)</label>
+            <input 
+              type="text" name="kodeReferral" value={formData.kodeReferral} onChange={handleChange}
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-gray-900 text-sm uppercase font-mono font-bold"
+              placeholder="Contoh: JK-0001"
             />
           </div>
 
@@ -218,7 +229,7 @@ export default function RegisterOwner() {
           </div>
 
           <button type="submit" disabled={isLoading} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors shadow-sm disabled:opacity-70 text-sm mt-2">
-            {isLoading ? 'Menyimpan Data...' : 'Mulai Trial 7 Hari'}
+            {isLoading ? 'Memproses Pendaftaran...' : 'Mulai Trial 7 Hari'}
           </button>
         </form>
 
