@@ -66,7 +66,7 @@ export async function POST(request: Request) {
       let replyText = ''
 
       if (text === '/help' || text === '/start') {
-        replyText = `🤖 *Pusat Bantuan Bot JuraganKasir*\n\nHalo Owner *${store.name}*!\n\n• /omzet - Cek total omzet hari ini\n• /stok - Cek status stok barang\n• /help - Bantuan perintah\n\n📞 *Kontak Resmi & Dukungan:* \n• WhatsApp Support: 0857-5555-8888\n• Email: support@juragankasir.web.id`
+        replyText = `🤖 *Pusat Bantuan Bot JuraganKasir*\n\nHalo Owner *${store.name}*!\n\n• /omzet - Cek total omzet hari ini\n• /stok - Cek status stok barang\n• /help - Bantuan perintah\n\n📞 *Kontak Resmi & Dukungan:*\n• WhatsApp Support: 0857-5555-8888\n• Email: support@juragankasir.web.id`
       } 
       else if (text === '/omzet') {
         const todayStart = new Date()
@@ -92,7 +92,7 @@ export async function POST(request: Request) {
           .from('products')
           .select('name, stock, category')
           .eq('store_id', store.id)
-.order('stock', { ascending: true })
+          .order('stock', { ascending: true })
 
         if (!products || products.length === 0) {
           replyText = `📦 *Informasi Stok*\n\nBelum ada produk di toko *${store.name}*.`
