@@ -425,7 +425,19 @@ export default function POS() {
       setIsClosingShiftModal(false)
       setActiveShift(null)
 
-      await sendTelegramNotification(`🔒 *SHIFT DITUTUP*\n\n🏪 Toko: ${storeName}\n👤 Kasir: ${userName}\n💵 Faktual di Laci: Rp ${actualCash.toLocaleString('id-ID')}\n📊 Selisih: Rp ${difference.toLocaleString('id-ID')}`)
+      // 👉 Notifikasi Telegram lengkap dengan ringkasan keuangan & rincian menu terjual
+      const itemsText = itemsSoldArray.map(i => `- ${i.qty}x ${i.name}`).join('\n')
+      await sendTelegramNotification(
+        `🔒 *SHIFT DITUTUP*\n\n` +
+        `🏪 Toko: ${storeName}\n` +
+        `👤 Kasir: ${userName}\n` +
+        `💰 Tunai: Rp ${totalCashSales.toLocaleString('id-ID')}\n` +
+        `💳 Non-Tunai: Rp ${totalQrisSales.toLocaleString('id-ID')}\n` +
+        `📉 Keluar: Rp ${totalExpenses.toLocaleString('id-ID')}\n` +
+        `💵 Faktual Laci: Rp ${actualCash.toLocaleString('id-ID')}\n` +
+        `📊 Selisih: Rp ${difference.toLocaleString('id-ID')}\n\n` +
+        `*Menu Terjual (${historyList.length} Transaksi):*\n${itemsText || 'Tidak ada penjualan'}`
+      )
     }
   }
 
@@ -1548,7 +1560,7 @@ export default function POS() {
                 <div className="flex justify-between text-red-600"><span>Pengeluaran Kas:</span><span>- Rp {closingReport.expenses.toLocaleString('id-ID')}</span></div>
               </div>
 
-              {/* 👉 Rincian Item Menu Terjual Selama Shift */}
+              {/* Rincian Item Menu Terjual Selama Shift */}
               {closingReport.itemsSold && closingReport.itemsSold.length > 0 && (
                 <div className="space-y-1 pb-3 border-b border-dashed border-gray-300 text-xs">
                   <p className="font-bold text-gray-800 mb-1">Rincian Menu Terjual ({closingReport.totalTransactions} Transaksi):</p>
