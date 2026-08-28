@@ -107,7 +107,9 @@ export default function POS() {
   const [isClosingShiftModal, setIsClosingShiftModal] = useState(false)
   const [closingCashInput, setClosingCashInput] = useState<number | ''>('')
   
-  const [activeTab, setActiveTab] = useState<'pos' | 'history' | 'expenses'>('pos')
+  // State tab termasuk 'stock'
+  const [activeTab, setActiveTab] = useState<'pos' | 'history' | 'expenses' | 'stock'>('pos')
+  
   const [products, setProducts] = useState<Product[]>([])
   const [addons, setAddons] = useState<Addon[]>([])
   const [cart, setCart] = useState<CartItem[]>([])
@@ -391,7 +393,14 @@ export default function POS() {
       alert('Produk habis!')
       return
     }
-    const available = addons.filter(a => a.category === product.category || a.category === 'Semua')
+    
+    // 👉 PERBAIKAN BUG ADDONS: Jadikan pencocokan kategori case-insensitive
+    const available = addons.filter(a => {
+      const addonCat = (a.category || '').toUpperCase()
+      const prodCat = (product.category || 'UMUM').toUpperCase()
+      return addonCat === prodCat || addonCat === 'SEMUA'
+    })
+
     if (available.length > 0) {
       setSelectedProductForAddon({ product, availableAddons: available })
       setChosenAddons([])
@@ -616,9 +625,12 @@ export default function POS() {
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-100">Menyiapkan Mesin Kasir...</div>
 
-  const categories = ['Semua', 'Minuman', 'Makanan', 'Dessert', 'Snack']
+  // Mengambil list kategori dinamis dari produk
+  const categories = ['Semua', ...Array.from(new Set(products.map(p => (p.category ? p.category.toUpperCase() : 'UMUM'))))]
+
   const filteredProducts = products.filter(p => {
-    const matchCategory = selectedCategory === 'Semua' || p.category === selectedCategory
+    const productCat = (p.category || 'UMUM').toUpperCase()
+    const matchCategory = selectedCategory === 'Semua' || productCat === selectedCategory.toUpperCase()
     const matchSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase())
     return matchCategory && matchSearch
   })
@@ -659,6 +671,12 @@ export default function POS() {
           <button onClick={() => setActiveTab('history')} className={`w-full flex items-center p-3 rounded-xl transition-colors ${activeTab === 'history' ? 'bg-blue-600 shadow-sm' : 'hover:bg-blue-700 text-blue-100'}`}>
             <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             {!isSidebarCollapsed && <span className="ml-3 font-medium whitespace-nowrap text-sm">Riwayat Transaksi</span>}
+          </button>
+
+          {/* 👉 TOMBOL TAB CEK STOK (BARU) */}
+          <button onClick={() => setActiveTab('stock')} className={`w-full flex items-center p-3 rounded-xl transition-colors ${activeTab === 'stock' ? 'bg-blue-600 shadow-sm' : 'hover:bg-blue-700 text-blue-100'}`}>
+            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+            {!isSidebarCollapsed && <span className="ml-3 font-medium whitespace-nowrap text-sm">Cek Stok Barang</span>}
           </button>
 
           <button onClick={() => setActiveTab('expenses')} className={`w-full flex items-center p-3 rounded-xl transition-colors ${activeTab === 'expenses' ? 'bg-blue-600 shadow-sm' : 'hover:bg-blue-700 text-blue-100'}`}>
@@ -863,6 +881,53 @@ export default function POS() {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        ) : activeTab === 'stock' ? (
+          // 👉 HALAMAN TAB BARU: CEK STOK (VIEW-ONLY UNTUK KASIR)
+          <div className="flex-1 p-8 overflow-y-auto max-w-6xl mx-auto w-full print:hidden">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-gray-800">Informasi Stok Menu & Produk</h2>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider border-b">
+                    <th className="p-4">Kategori</th>
+                    <th className="p-4">Nama Menu</th>
+                    <th className="p-4">Harga Jual</th>
+                    <th className="p-4 text-center">Sisa Stok</th>
+                    <th className="p-4 text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 text-gray-700">
+                  {products.length === 0 ? (
+                    <tr><td colSpan={5} className="p-8 text-center text-gray-400">Belum ada menu terdaftar.</td></tr>
+                  ) : (
+                    products.map(p => (
+                      <tr key={p.id} className="hover:bg-gray-50">
+                        <td className="p-4">
+                          <span className="px-2.5 py-1 rounded text-[10px] font-bold uppercase bg-blue-50 text-blue-700 border border-blue-100">
+                            {p.category || 'UMUM'}
+                          </span>
+                        </td>
+                        <td className="p-4 text-sm font-semibold text-gray-800">{p.name}</td>
+                        <td className="p-4 text-sm font-medium text-gray-600">Rp {p.price.toLocaleString('id-ID')}</td>
+                        <td className="p-4 text-center text-base font-bold text-gray-800">{p.stock}</td>
+                        <td className="p-4 text-center">
+                          {p.stock <= 0 ? (
+                            <span className="px-2 py-1 bg-red-100 text-red-600 text-[10px] font-bold rounded uppercase">Habis</span>
+                          ) : p.stock <= 5 ? (
+                            <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-[10px] font-bold rounded uppercase">Menipis</span>
+                          ) : (
+                            <span className="px-2 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded uppercase">Aman</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         ) : activeTab === 'history' ? (
@@ -1239,6 +1304,11 @@ export default function POS() {
                 <div className="flex justify-between"><span>Faktual di Laci:</span><span>Rp {closingReport.actual.toLocaleString('id-ID')}</span></div>
                 <div className={`flex justify-between ${closingReport.diff < 0 ? 'text-red-600' : 'text-green-600'}`}><span>Selisih:</span><span>Rp {closingReport.diff.toLocaleString('id-ID')}</span></div>
               </div>
+              
+              {/* WATERMARK LAPORAN SHIFT */}
+              <div className="text-center pt-3 mt-2 border-t border-dashed border-gray-300">
+                <p className="text-[10px] font-black text-gray-800">Powered by bit.ly/JuraganKasir</p>
+              </div>
             </div>
             <div className="p-4 bg-gray-50 border-t flex space-x-3 print:hidden">
               <button onClick={() => { setClosingReport(null); router.push('/login'); }} className="flex-1 px-4 py-2 border rounded-lg text-gray-700 text-xs font-medium">Selesai & Logout</button>
@@ -1306,7 +1376,14 @@ export default function POS() {
                 )}
                 {selectedReceipt.note && <p className="text-[10px] text-gray-600 italic pt-1">Catatan: {selectedReceipt.note}</p>}
               </div>
-              <div className="text-center pt-1"><p className="font-medium whitespace-pre-line text-[10px]">{storeInfo.receipt_footer}</p></div>
+              
+              {/* WATERMARK STRUK PEMBELI */}
+              <div className="text-center pt-3 mt-3 border-t border-dashed border-gray-300">
+                {storeInfo.receipt_footer && (
+                  <p className="font-medium whitespace-pre-line text-[10px] mb-2">{storeInfo.receipt_footer}</p>
+                )}
+                <p className="text-[10px] font-black text-gray-800">Powered by bit.ly/JuraganKasir</p>
+              </div>
             </div>
 
             <div className="p-4 bg-gray-50 border-t flex space-x-3 print:hidden flex-shrink-0">
