@@ -107,7 +107,6 @@ export default function POS() {
   const [isClosingShiftModal, setIsClosingShiftModal] = useState(false)
   const [closingCashInput, setClosingCashInput] = useState<number | ''>('')
   
-  // State tab termasuk 'stock'
   const [activeTab, setActiveTab] = useState<'pos' | 'history' | 'expenses' | 'stock'>('pos')
   
   const [products, setProducts] = useState<Product[]>([])
@@ -228,6 +227,27 @@ export default function POS() {
     }
   }
 
+  // 👉 HELPER NOTIFIKASI TELEGRAM OTOMATIS
+  const sendTelegramNotification = async (msg: string) => {
+    try {
+      const { data: storeData } = await supabase
+        .from('stores')
+        .select('telegram_chat_id')
+        .eq('id', storeId)
+        .single()
+
+      if (storeData && storeData.telegram_chat_id) {
+        await fetch('/api/telegram', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: storeData.telegram_chat_id, message: msg })
+        })
+      }
+    } catch (err) {
+      console.error('Gagal kirim notif Telegram:', err)
+    }
+  }
+
   const handleOpenShiftSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (openingBalanceInput === '' || openingBalanceInput < 0) return
@@ -249,6 +269,9 @@ export default function POS() {
       setOpeningBalanceInput('')
       fetchHistory(storeId, userName, data.id)
       fetchExpenses(data.id)
+
+      // 👉 KIRIM NOTIFIKASI TELEGRAM BUKA SHIFT
+      await sendTelegramNotification(`🔓 *SHIFT DIBUKA*\n\n🏪 Toko: ${storeName}\n👤 Kasir: ${userName}\n💵 Modal Awal: Rp ${Number(openingBalanceInput).toLocaleString('id-ID')}`)
     } else {
       alert('Gagal membuka shift: ' + (error?.message || 'Terjadi kesalahan'))
     }
@@ -343,6 +366,9 @@ export default function POS() {
       })
       setIsClosingShiftModal(false)
       setActiveShift(null)
+
+      // 👉 KIRIM NOTIFIKASI TELEGRAM TUTUP SHIFT
+      await sendTelegramNotification(`🔒 *SHIFT DITUTUP*\n\n🏪 Toko: ${storeName}\n👤 Kasir: ${userName}\n💵 Faktual di Laci: Rp ${actualCash.toLocaleString('id-ID')}\n📊 Selisih: Rp ${difference.toLocaleString('id-ID')}`)
     }
   }
 
@@ -394,7 +420,6 @@ export default function POS() {
       return
     }
     
-    // 👉 PERBAIKAN BUG ADDONS: Jadikan pencocokan kategori case-insensitive
     const available = addons.filter(a => {
       const addonCat = (a.category || '').toUpperCase()
       const prodCat = (product.category || 'UMUM').toUpperCase()
@@ -570,7 +595,7 @@ export default function POS() {
       fetchProducts(storeId)
       if (activeShift) fetchHistory(storeId, userName, activeShift.id)
 
-      // 👉 KIRIM NOTIFIKASI TELEGRAM OTOMATIS KE DATABASE STORE
+      // 👉 KIRIM NOTIFIKASI TELEGRAM TRANSAKSI & CEK STOK MENIPIS
       try {
         const { data: storeData } = await supabase
           .from('stores')
@@ -590,6 +615,28 @@ export default function POS() {
               message: message
             })
           })
+
+          // 👉 CEK STOK MENIPIS SETELAH TRANSAKSI
+          let lowStockAlert = ''
+          for (const item of cart) {
+            const prod = products.find(p => p.id === item.productId)
+            if (prod) {
+              const remainingStock = prod.stock - item.quantity
+              if (remainingStock <= 5) {
+                lowStockAlert += `\n⚠️ *Stok Menipis:* ${prod.name} sisa ${remainingStock} pcs!`
+              }
+            }
+          }
+          if (lowStockAlert) {
+            await fetch('/api/telegram', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: storeData.telegram_chat_id,
+                message: lowStockAlert
+              })
+            })
+          }
         }
       } catch (tgError) {
         console.error('Gagal kirim notifikasi Telegram:', tgError)
@@ -625,7 +672,6 @@ export default function POS() {
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-100">Menyiapkan Mesin Kasir...</div>
 
-  // Mengambil list kategori dinamis dari produk
   const categories = ['Semua', ...Array.from(new Set(products.map(p => (p.category ? p.category.toUpperCase() : 'UMUM'))))]
 
   const filteredProducts = products.filter(p => {
@@ -673,7 +719,6 @@ export default function POS() {
             {!isSidebarCollapsed && <span className="ml-3 font-medium whitespace-nowrap text-sm">Riwayat Transaksi</span>}
           </button>
 
-          {/* 👉 TOMBOL TAB CEK STOK (BARU) */}
           <button onClick={() => setActiveTab('stock')} className={`w-full flex items-center p-3 rounded-xl transition-colors ${activeTab === 'stock' ? 'bg-blue-600 shadow-sm' : 'hover:bg-blue-700 text-blue-100'}`}>
             <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
             {!isSidebarCollapsed && <span className="ml-3 font-medium whitespace-nowrap text-sm">Cek Stok Barang</span>}
@@ -884,7 +929,6 @@ export default function POS() {
             </div>
           </div>
         ) : activeTab === 'stock' ? (
-          // 👉 HALAMAN TAB BARU: CEK STOK (VIEW-ONLY UNTUK KASIR)
           <div className="flex-1 p-8 overflow-y-auto max-w-6xl mx-auto w-full print:hidden">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-gray-800">Informasi Stok Menu & Produk</h2>
@@ -1305,7 +1349,6 @@ export default function POS() {
                 <div className={`flex justify-between ${closingReport.diff < 0 ? 'text-red-600' : 'text-green-600'}`}><span>Selisih:</span><span>Rp {closingReport.diff.toLocaleString('id-ID')}</span></div>
               </div>
               
-              {/* WATERMARK LAPORAN SHIFT */}
               <div className="text-center pt-3 mt-2 border-t border-dashed border-gray-300">
                 <p className="text-[10px] font-black text-gray-800">Powered by bit.ly/JuraganKasir</p>
               </div>
@@ -1377,7 +1420,6 @@ export default function POS() {
                 {selectedReceipt.note && <p className="text-[10px] text-gray-600 italic pt-1">Catatan: {selectedReceipt.note}</p>}
               </div>
               
-              {/* WATERMARK STRUK PEMBELI */}
               <div className="text-center pt-3 mt-3 border-t border-dashed border-gray-300">
                 {storeInfo.receipt_footer && (
                   <p className="font-medium whitespace-pre-line text-[10px] mb-2">{storeInfo.receipt_footer}</p>

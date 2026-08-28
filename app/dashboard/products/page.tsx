@@ -19,7 +19,6 @@ export default function ProductsPage() {
   const [storeId, setStoreId] = useState('')
   const [products, setProducts] = useState<Product[]>([])
 
-  // Form Tambah Produk (Kategori pakai text bebas)
   const [formData, setFormData] = useState({
     name: '',
     price: '',
@@ -29,7 +28,6 @@ export default function ProductsPage() {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // State untuk Modal Edit Produk
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
@@ -64,6 +62,27 @@ export default function ProductsPage() {
     setLoading(false)
   }
 
+  // 👉 HELPER KIRIM NOTIFIKASI AUDIT TELEGRAM
+  const sendTelegramAudit = async (msg: string) => {
+    try {
+      const { data: storeData } = await supabase
+        .from('stores')
+        .select('telegram_chat_id')
+        .eq('id', storeId)
+        .single()
+
+      if (storeData && storeData.telegram_chat_id) {
+        await fetch('/api/telegram', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: storeData.telegram_chat_id, message: msg })
+        })
+      }
+    } catch (err) {
+      console.error('Gagal kirim audit Telegram:', err)
+    }
+  }
+
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
@@ -86,14 +105,24 @@ export default function ProductsPage() {
     } else {
       setFormData({ name: '', price: '', hpp: '', stock: '', category: 'Minuman' })
       fetchProducts(storeId)
+
+      // 👉 NOTIFIKASI TELEGRAM TAMBAH MENU BARU
+      await sendTelegramAudit(`📦 *MENU BARU DITAMBAHKAN*\n\n📝 Nama: ${formData.name.trim()}\n🏷️ Kategori: ${cleanCategory}\n💰 Harga Jual: Rp ${Number(formData.price).toLocaleString('id-ID')}\n📊 Stok: ${formData.stock}`)
     }
     setIsSubmitting(false)
   }
 
   const handleDeleteProduct = async (id: string) => {
     if (!confirm('Hapus produk ini?')) return
+    const prodToDelete = products.find(p => p.id === id)
+    
     const { error } = await supabase.from('products').delete().eq('id', id)
-    if (!error) fetchProducts(storeId)
+    if (!error) {
+      fetchProducts(storeId)
+      if (prodToDelete) {
+        await sendTelegramAudit(`🗑️ *MENU DIHAPUS*\n\n📝 Nama: ${prodToDelete.name}\n🏷️ Kategori: ${prodToDelete.category}`)
+      }
+    }
   }
 
   const handleOpenEditModal = (product: Product) => {
@@ -125,6 +154,9 @@ export default function ProductsPage() {
       setIsEditModalOpen(false)
       setEditingProduct(null)
       fetchProducts(storeId)
+
+      // 👉 NOTIFIKASI TELEGRAM AUDIT PERUBAHAN / INDIKASI KECURANGAN HARGA/STOK
+      await sendTelegramAudit(`⚠️ *AUDIT PERUBAHAN MENU / PRODUK*\n\n📝 Menu: ${editingProduct.name.trim()}\n💰 Harga Jual Baru: Rp ${Number(editingProduct.price).toLocaleString('id-ID')}\n📦 HPP (Modal): Rp ${Number(editingProduct.hpp).toLocaleString('id-ID')}\n🔢 Stok Baru: ${editingProduct.stock}`)
     }
     setIsUpdating(false)
   }
