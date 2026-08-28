@@ -77,6 +77,19 @@ interface StoreSettings {
   tax_percentage: number
 }
 
+interface StaffMember {
+  id: string
+  name: string
+}
+
+interface AttendanceItem {
+  id: string
+  cashier_name: string
+  status: string
+  notes: string
+  clock_in: string
+}
+
 export default function POS() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
@@ -107,8 +120,17 @@ export default function POS() {
   const [isClosingShiftModal, setIsClosingShiftModal] = useState(false)
   const [closingCashInput, setClosingCashInput] = useState<number | ''>('')
   
-  const [activeTab, setActiveTab] = useState<'pos' | 'history' | 'expenses' | 'stock'>('pos')
+  const [activeTab, setActiveTab] = useState<'pos' | 'history' | 'expenses' | 'stock' | 'attendance'>('pos')
   
+  // 👉 State Modul Absensi & Daftar Staff Toko + Riwayat Absensi
+  const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false)
+  const [attendanceStatus, setAttendanceStatus] = useState('Hadir')
+  const [attendanceNotes, setAttendanceNotes] = useState('')
+  const [attendancePin, setAttendancePin] = useState('')
+  const [selectedStaffName, setSelectedStaffName] = useState('')
+  const [storeStaffList, setStoreStaffList] = useState<StaffMember[]>([])
+  const [attendanceList, setAttendanceList] = useState<AttendanceItem[]>([])
+
   const [products, setProducts] = useState<Product[]>([])
   const [addons, setAddons] = useState<Addon[]>([])
   const [cart, setCart] = useState<CartItem[]>([])
@@ -174,6 +196,8 @@ export default function POS() {
       fetchProducts(currentStoreId)
       fetchAddons(currentStoreId)
       fetchSavedBills(currentStoreId)
+      fetchStoreStaff(currentStoreId)
+      fetchAttendanceRecords(currentStoreId)
       setLoading(false)
     }
 
@@ -197,6 +221,30 @@ export default function POS() {
         tax_percentage: storeData.tax_percentage || 0
       })
     }
+  }
+
+  const fetchStoreStaff = async (sId: string) => {
+    const { data } = await supabase
+      .from('users')
+      .select('id, name')
+      .eq('store_id', sId)
+      .order('name', { ascending: true })
+
+    if (data && data.length > 0) {
+      setStoreStaffList(data)
+      setSelectedStaffName(data[0].name)
+    }
+  }
+
+  const fetchAttendanceRecords = async (sId: string) => {
+    const { data } = await supabase
+      .from('attendance')
+      .select('*')
+      .eq('store_id', sId)
+      .order('clock_in', { ascending: false })
+      .limit(30)
+
+    if (data) setAttendanceList(data)
   }
 
   const fetchSavedBills = async (sId: string) => {
@@ -227,7 +275,6 @@ export default function POS() {
     }
   }
 
-  // 👉 HELPER NOTIFIKASI TELEGRAM OTOMATIS
   const sendTelegramNotification = async (msg: string) => {
     try {
       const { data: storeData } = await supabase
@@ -270,7 +317,6 @@ export default function POS() {
       fetchHistory(storeId, userName, data.id)
       fetchExpenses(data.id)
 
-      // 👉 KIRIM NOTIFIKASI TELEGRAM BUKA SHIFT
       await sendTelegramNotification(`🔓 *SHIFT DIBUKA*\n\n🏪 Toko: ${storeName}\n👤 Kasir: ${userName}\n💵 Modal Awal: Rp ${Number(openingBalanceInput).toLocaleString('id-ID')}`)
     } else {
       alert('Gagal membuka shift: ' + (error?.message || 'Terjadi kesalahan'))
@@ -367,8 +413,42 @@ export default function POS() {
       setIsClosingShiftModal(false)
       setActiveShift(null)
 
-      // 👉 KIRIM NOTIFIKASI TELEGRAM TUTUP SHIFT
       await sendTelegramNotification(`🔒 *SHIFT DITUTUP*\n\n🏪 Toko: ${storeName}\n👤 Kasir: ${userName}\n💵 Faktual di Laci: Rp ${actualCash.toLocaleString('id-ID')}\n📊 Selisih: Rp ${difference.toLocaleString('id-ID')}`)
+    }
+  }
+
+  const handleAttendanceSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!attendancePin || !selectedStaffName) return
+
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('name, pin')
+      .eq('store_id', storeId)
+      .eq('name', selectedStaffName)
+      .single()
+
+    if (userError || !userData || userData.pin !== attendancePin) {
+      alert('PIN Karyawan Salah!')
+      return
+    }
+
+    const { error } = await supabase.from('attendance').insert([{
+      store_id: storeId,
+      cashier_name: selectedStaffName,
+      status: attendanceStatus,
+      notes: attendanceNotes,
+      clock_in: new Date().toISOString()
+    }])
+
+    if (error) {
+      alert('Gagal menyimpan absensi: ' + error.message)
+    } else {
+      alert(`Absensi untuk ${selectedStaffName} berhasil dicatat!`)
+      setIsAttendanceModalOpen(false)
+      setAttendancePin('')
+      setAttendanceNotes('')
+      fetchAttendanceRecords(storeId)
     }
   }
 
@@ -595,7 +675,6 @@ export default function POS() {
       fetchProducts(storeId)
       if (activeShift) fetchHistory(storeId, userName, activeShift.id)
 
-      // 👉 KIRIM NOTIFIKASI TELEGRAM TRANSAKSI & CEK STOK MENIPIS
       try {
         const { data: storeData } = await supabase
           .from('stores')
@@ -616,7 +695,6 @@ export default function POS() {
             })
           })
 
-          // 👉 CEK STOK MENIPIS SETELAH TRANSAKSI
           let lowStockAlert = ''
           for (const item of cart) {
             const prod = products.find(p => p.id === item.productId)
@@ -727,6 +805,11 @@ export default function POS() {
           <button onClick={() => setActiveTab('expenses')} className={`w-full flex items-center p-3 rounded-xl transition-colors ${activeTab === 'expenses' ? 'bg-blue-600 shadow-sm' : 'hover:bg-blue-700 text-blue-100'}`}>
             <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             {!isSidebarCollapsed && <span className="ml-3 font-medium whitespace-nowrap text-sm">Pengeluaran ({expensesList.length})</span>}
+          </button>
+
+          <button onClick={() => setActiveTab('attendance')} className={`w-full flex items-center p-3 rounded-xl transition-colors ${activeTab === 'attendance' ? 'bg-blue-600 shadow-sm' : 'hover:bg-blue-700 text-blue-100'}`}>
+            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+            {!isSidebarCollapsed && <span className="ml-3 font-medium whitespace-nowrap text-sm">Absensi Karyawan</span>}
           </button>
 
           {!isSidebarCollapsed && activeShift && (
@@ -1019,6 +1102,51 @@ export default function POS() {
               </table>
             </div>
           </div>
+        ) : activeTab === 'attendance' ? (
+          // 👉 TAMPILAN MODUL ABSENSI & RIWAYAT UNTUK KARYAWAN DI POS
+          <div className="flex-1 p-8 overflow-y-auto max-w-5xl mx-auto w-full print:hidden space-y-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-bold text-gray-800">Modul Absensi Karyawan</h2>
+                <p className="text-xs text-gray-500 mt-1">Cek riwayat kehadiran di bawah untuk memastikan absensi Anda sudah terekam.</p>
+              </div>
+              <button onClick={() => setIsAttendanceModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors">+ Catat Kehadiran / Absen</button>
+            </div>
+
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="p-4 bg-gray-50 border-b border-gray-200 font-semibold text-sm text-gray-700">
+                Riwayat Absensi Kehadiran Terbaru
+              </div>
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50/50 text-gray-500 text-xs font-medium uppercase tracking-wider border-b">
+                    <th className="p-4">Nama Karyawan</th>
+                    <th className="p-4">Status</th>
+                    <th className="p-4">Waktu Absen</th>
+                    <th className="p-4">Catatan</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 text-gray-700 text-sm">
+                  {attendanceList.length === 0 ? (
+                    <tr><td colSpan={4} className="p-8 text-center text-gray-400">Belum ada riwayat absensi tercatat.</td></tr>
+                  ) : (
+                    attendanceList.map(item => (
+                      <tr key={item.id} className="hover:bg-gray-50">
+                        <td className="p-4 font-semibold text-gray-800">{item.cashier_name}</td>
+                        <td className="p-4">
+                          <span className={`px-2.5 py-1 rounded text-xs font-bold uppercase ${item.status === 'Hadir' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                            {item.status}
+                          </span>
+                        </td>
+                        <td className="p-4 text-gray-600">{new Date(item.clock_in).toLocaleString('id-ID')}</td>
+                        <td className="p-4 text-gray-500 italic">{item.notes || '-'}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         ) : (
           <div className="flex-1 p-8 overflow-y-auto max-w-4xl mx-auto w-full print:hidden">
             <div className="flex justify-between items-center mb-6">
@@ -1048,6 +1176,77 @@ export default function POS() {
           </div>
         )}
       </main>
+
+      {/* MODAL FORM ABSENSI KARYAWAN DENGAN PILIHAN NAMA & BERSIH DARI TANDA $ */}
+      {isAttendanceModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
+            <div className="p-5 bg-blue-600 text-white">
+              <h2 className="text-lg font-bold">Form Absensi Karyawan</h2>
+              <p className="text-xs text-blue-100 mt-1">Pilih nama staf dan masukkan PIN rahasia.</p>
+            </div>
+            <form onSubmit={handleAttendanceSubmit} className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wider">Nama Karyawan / Staf</label>
+                <select 
+                  value={selectedStaffName} 
+                  onChange={(e) => setSelectedStaffName(e.target.value)}
+                  className="w-full px-4 py-2.5 border rounded-lg text-sm bg-white outline-none text-gray-800 font-semibold"
+                >
+                  {storeStaffList.map(staff => (
+                    <option key={staff.id} value={staff.name}>{staff.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wider">Status Kehadiran</label>
+                <select 
+                  value={attendanceStatus} 
+                  onChange={(e) => setAttendanceStatus(e.target.value)}
+                  className="w-full px-4 py-2.5 border rounded-lg text-sm bg-white outline-none text-gray-800 font-semibold"
+                >
+                  <option value="Hadir">Hadir</option>
+                  <option value="Sakit">Sakit</option>
+                  <option value="Izin">Izin</option>
+                  <option value="Libur">Libur</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wider">
+                  {`PIN Karyawan (${selectedStaffName || 'Pilih Staf'})`}
+                </label>
+                <input 
+                  type="password" 
+                  required 
+                  maxLength={6}
+                  value={attendancePin} 
+                  onChange={(e) => setAttendancePin(e.target.value)} 
+                  placeholder="Masukkan PIN..." 
+                  className="w-full px-4 py-2.5 border rounded-lg outline-none text-gray-800 text-base font-semibold" 
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wider">Catatan (Opsional)</label>
+                <input 
+                  type="text" 
+                  value={attendanceNotes} 
+                  onChange={(e) => setAttendanceNotes(e.target.value)} 
+                  placeholder="Keterangan tambahan..." 
+                  className="w-full px-4 py-2.5 border rounded-lg outline-none text-gray-800 text-sm" 
+                />
+              </div>
+
+              <div className="flex space-x-3 pt-2">
+                <button type="button" onClick={() => setIsAttendanceModalOpen(false)} className="flex-1 px-4 py-2.5 border rounded-lg text-gray-600 text-xs font-medium">Batal</button>
+                <button type="submit" className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-sm">Simpan Absensi</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* MODAL SIMPAN BILL (OPEN BILL) */}
       {isSaveBillModalOpen && (

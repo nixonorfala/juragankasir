@@ -58,11 +58,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: 'Produk & Menu', href: '/dashboard/products' },
     { name: 'Kelola Add-Ons / Varian', href: '/dashboard/addons' },
     { name: 'Karyawan / Kasir', href: '/dashboard/staff' },
+    { name: 'Absensi Karyawan', href: '/dashboard/attendance' }, // 👉 Menu Absensi Diselipkan Disini!
     { name: 'Laporan Penjualan', href: '/dashboard/sales' },
     { name: 'AI Advisor', href: '/dashboard/ai-advisor' },
     { name: 'Langganan & Tagihan', href: '/dashboard/billing' },
     { name: 'Pengaturan Toko', href: '/dashboard/settings' },
-    { name: 'Pusat Bantuan', href: '/dashboard/help' }, // <--- Menu Bantuan Resmi Diselipkan Disini!
+    { name: 'Pusat Bantuan', href: '/dashboard/help' },
   ]
 
   return (
