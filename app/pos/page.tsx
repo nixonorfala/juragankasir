@@ -122,7 +122,6 @@ export default function POS() {
   
   const [activeTab, setActiveTab] = useState<'pos' | 'history' | 'expenses' | 'stock' | 'attendance'>('pos')
   
-  // 👉 State Modul Absensi & Daftar Staff Toko + Riwayat Absensi
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false)
   const [attendanceStatus, setAttendanceStatus] = useState('Hadir')
   const [attendanceNotes, setAttendanceNotes] = useState('')
@@ -386,6 +385,17 @@ export default function POS() {
     const actualCash = Number(closingCashInput)
     const difference = actualCash - expectedCashInDrawer
 
+    // Rangkum item menu yang terjual selama shift ini[cite: 3]
+    const itemSummary: { [name: string]: number } = {}
+    historyList.forEach(trx => {
+      if (trx.transaction_items) {
+        trx.transaction_items.forEach(ti => {
+          itemSummary[ti.product_name] = (itemSummary[ti.product_name] || 0) + ti.quantity
+        })
+      }
+    })
+    const itemsSoldArray = Object.entries(itemSummary).map(([name, qty]) => ({ name, qty }))
+
     const { error } = await supabase
       .from('shifts')
       .update({
@@ -408,7 +418,9 @@ export default function POS() {
         expected: expectedCashInDrawer,
         actual: actualCash,
         diff: difference,
-        closedAt: closedAtStr
+        closedAt: closedAtStr,
+        itemsSold: itemsSoldArray,
+        totalTransactions: historyList.length
       })
       setIsClosingShiftModal(false)
       setActiveShift(null)
@@ -1103,7 +1115,6 @@ export default function POS() {
             </div>
           </div>
         ) : activeTab === 'attendance' ? (
-          // 👉 TAMPILAN MODUL ABSENSI & RIWAYAT UNTUK KARYAWAN DI POS
           <div className="flex-1 p-8 overflow-y-auto max-w-5xl mx-auto w-full print:hidden space-y-6">
             <div className="flex justify-between items-center">
               <div>
@@ -1177,7 +1188,6 @@ export default function POS() {
         )}
       </main>
 
-      {/* MODAL FORM ABSENSI KARYAWAN DENGAN PILIHAN NAMA & BERSIH DARI TANDA $ */}
       {isAttendanceModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
@@ -1248,7 +1258,6 @@ export default function POS() {
         </div>
       )}
 
-      {/* MODAL SIMPAN BILL (OPEN BILL) */}
       {isSaveBillModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
@@ -1277,7 +1286,6 @@ export default function POS() {
         </div>
       )}
 
-      {/* MODAL DAFTAR OPEN BILL TERSIMPAN */}
       {isOpenBillModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden max-h-[85vh] flex flex-col">
@@ -1318,7 +1326,6 @@ export default function POS() {
         </div>
       )}
 
-      {/* MODAL PILIH ADD-ONS */}
       {selectedProductForAddon && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
@@ -1355,7 +1362,6 @@ export default function POS() {
         </div>
       )}
 
-      {/* MODAL PAYMENT DENGAN INPUT DISKON / PROMO */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4 print:hidden">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col">
@@ -1453,7 +1459,6 @@ export default function POS() {
         </div>
       )}
 
-      {/* MODAL SHIFT, EXPENSE, DAN CETAK STRUK */}
       {isOpeningShiftModal && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
@@ -1528,7 +1533,7 @@ export default function POS() {
       {closingReport && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 print:p-0 print:bg-white print:fixed print:inset-0">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden print:shadow-none print:w-full">
-            <div className="p-6 font-mono text-xs text-gray-800 space-y-3 bg-white print:p-4" id="printable-closing">
+            <div className="p-6 font-mono text-xs text-gray-800 space-y-3 bg-white print:p-4 max-h-[80vh] overflow-y-auto" id="printable-closing">
               <div className="text-center space-y-1 pb-3 border-b border-dashed border-gray-300">
                 <h3 className="text-base font-bold uppercase tracking-wider">LAPORAN TUTUP SHIFT</h3>
                 <p className="text-gray-500 text-[10px]">{storeInfo.name}</p>
@@ -1542,6 +1547,20 @@ export default function POS() {
                 <div className="flex justify-between"><span>Penjualan Non-Tunai:</span><span>Rp {closingReport.qrisSales.toLocaleString('id-ID')}</span></div>
                 <div className="flex justify-between text-red-600"><span>Pengeluaran Kas:</span><span>- Rp {closingReport.expenses.toLocaleString('id-ID')}</span></div>
               </div>
+
+              {/* 👉 Rincian Item Menu Terjual Selama Shift */}
+              {closingReport.itemsSold && closingReport.itemsSold.length > 0 && (
+                <div className="space-y-1 pb-3 border-b border-dashed border-gray-300 text-xs">
+                  <p className="font-bold text-gray-800 mb-1">Rincian Menu Terjual ({closingReport.totalTransactions} Transaksi):</p>
+                  {closingReport.itemsSold.map((item: any, idx: number) => (
+                    <div key={idx} className="flex justify-between text-gray-600">
+                      <span>• {item.name}</span>
+                      <span className="font-bold">{item.qty}x</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div className="space-y-1.5 pb-3 border-b border-dashed border-gray-300 font-bold">
                 <div className="flex justify-between"><span>Seharusnya di Laci:</span><span>Rp {closingReport.expected.toLocaleString('id-ID')}</span></div>
                 <div className="flex justify-between"><span>Faktual di Laci:</span><span>Rp {closingReport.actual.toLocaleString('id-ID')}</span></div>
