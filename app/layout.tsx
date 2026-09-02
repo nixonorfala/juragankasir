@@ -9,8 +9,15 @@ const plusJakarta = Plus_Jakarta_Sans({
 })
 
 export const metadata = {
-  title: 'JuraganKasir',
-  description: 'Aplikasi Kasir POS',
+  title: 'JuraganKasir - Aplikasi Kasir POS & AI Advisor',
+  description: 'Sistem Kasir Pintar untuk UMKM',
+  manifest: '/manifest.json',
+  themeColor: '#2563eb',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'JuraganKasir',
+  },
 }
 
 export default function RootLayout({
