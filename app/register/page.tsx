@@ -103,32 +103,32 @@ export default function RegisterOwner() {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-        <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl text-center">
-          <div className="flex justify-center mb-6">
+      <div className="min-h-[100dvh] flex items-center justify-center bg-gray-100 p-4 overflow-x-hidden">
+        <div className="max-w-md w-full bg-white p-6 md:p-8 rounded-2xl shadow-xl text-center">
+          <div className="flex justify-center mb-4 md:mb-6">
             <Image 
               src="/logo-utama.png" 
               alt="JuraganKasir Logo" 
-              width={180} 
-              height={45} 
-              className="h-20 w-auto object-contain" 
+              width={150} 
+              height={38} 
+              className="h-16 md:h-20 w-auto object-contain" 
             />
           </div>
 
-          <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+          <div className="w-14 h-14 md:w-16 md:h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-7 h-7 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Toko Berhasil Dibuat!</h2>
-          <p className="text-gray-600 text-sm mb-6">Masa Trial 7 Hari lu sudah aktif. Hubungi sales atau admin untuk upgrade paket (1, 3, 6 Bulan, atau 1 Tahun). Kode Merchant lu:</p>
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">Toko Berhasil Dibuat!</h2>
+          <p className="text-gray-600 text-xs md:text-sm mb-5 md:mb-6">Masa Trial 7 Hari lu sudah aktif. Hubungi sales atau admin untuk upgrade paket. Kode Merchant lu:</p>
           
-          <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl mb-6">
-            <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-1">Kode Merchant / Toko</p>
-            <p className="text-xl font-bold text-blue-800 font-mono tracking-wide">{registeredSlug}</p>
+          <div className="bg-blue-50 border border-blue-100 p-3.5 md:p-4 rounded-xl mb-5 md:mb-6">
+            <p className="text-[10px] md:text-xs font-semibold text-blue-600 uppercase tracking-wider mb-1">Kode Merchant / Toko</p>
+            <p className="text-lg md:text-xl font-bold text-blue-800 font-mono tracking-wide">{registeredSlug}</p>
           </div>
 
           <button 
             onClick={() => router.push('/login')}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors shadow-sm"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 md:py-3 rounded-xl transition-colors shadow-sm text-xs md:text-sm"
           >
             Lanjut ke Halaman Login
           </button>
@@ -138,37 +138,37 @@ export default function RegisterOwner() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4 py-10">
-      <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl">
+    <div className="min-h-[100dvh] flex items-center justify-center bg-gray-100 p-4 py-8 md:py-12 overflow-x-hidden">
+      <div className="max-w-md w-full bg-white p-6 md:p-8 rounded-2xl shadow-xl">
         
-        <div className="flex justify-center mb-6">
+        <div className="flex justify-center mb-4 md:mb-6">
           <Image 
             src="/logo-utama.png" 
             alt="JuraganKasir Logo" 
-            width={200} 
-            height={50} 
-            className="h-20 w-auto object-contain" 
+            width={160} 
+            height={40} 
+            className="h-16 md:h-20 w-auto object-contain" 
             priority
           />
         </div>
 
-        <div className="text-center mb-6">
-          <h1 className="text-xl font-bold text-gray-900">Pendaftaran Akun Owner</h1>
-          <p className="text-gray-500 text-sm mt-1">Daftarkan toko lu dan nikmati Trial 7 Hari</p>
+        <div className="text-center mb-5 md:mb-6">
+          <h1 className="text-lg md:text-xl font-bold text-gray-900">Pendaftaran Akun Owner</h1>
+          <p className="text-gray-500 text-xs md:text-sm mt-1">Daftarkan toko lu dan nikmati Trial 7 Hari</p>
         </div>
 
         {errorMsg && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-xl text-center font-medium">
+          <div className="mb-4 p-3 bg-red-50 border border-red-100 text-red-600 text-xs md:text-sm rounded-xl text-center font-medium">
             {errorMsg}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3.5 md:space-y-4">
           <div>
             <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Nama Toko</label>
             <input 
               type="text" name="namaToko" value={formData.namaToko} onChange={handleChange} required
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-gray-900 text-sm"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-gray-900 text-xs md:text-sm"
               placeholder="Contoh: Kopi Senja"
             />
           </div>
@@ -177,7 +177,7 @@ export default function RegisterOwner() {
             <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Kode Referral Sales (Opsional)</label>
             <input 
               type="text" name="kodeReferral" value={formData.kodeReferral} onChange={handleChange}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-gray-900 text-sm uppercase font-mono font-bold"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-gray-900 text-xs md:text-sm uppercase font-mono font-bold"
               placeholder="Contoh: JK-0001"
             />
           </div>
@@ -186,7 +186,7 @@ export default function RegisterOwner() {
             <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Nama Pemilik (Owner)</label>
             <input 
               type="text" name="namaPemilik" value={formData.namaPemilik} onChange={handleChange} required
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-gray-900 text-sm"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-gray-900 text-xs md:text-sm"
               placeholder="Nama lengkap lu"
             />
           </div>
@@ -195,7 +195,7 @@ export default function RegisterOwner() {
             <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Email LogIn</label>
             <input 
               type="email" name="email" value={formData.email} onChange={handleChange} required
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-gray-900 text-sm"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-gray-900 text-xs md:text-sm"
               placeholder="owner@email.com"
             />
           </div>
@@ -205,7 +205,7 @@ export default function RegisterOwner() {
             <div className="relative">
               <input 
                 type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handleChange} required minLength={6}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-gray-900 text-sm pr-12"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-gray-900 text-xs md:text-sm pr-12"
                 placeholder="Minimal 6 karakter"
               />
               <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-xs font-semibold text-gray-400 hover:text-gray-600">
@@ -219,7 +219,7 @@ export default function RegisterOwner() {
             <div className="relative">
               <input 
                 type={showConfirmPassword ? "text" : "password"} name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} required minLength={6}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-gray-900 text-sm pr-12"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-gray-900 text-xs md:text-sm pr-12"
                 placeholder="Ulangi password"
               />
               <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-3 text-xs font-semibold text-gray-400 hover:text-gray-600">
@@ -228,12 +228,12 @@ export default function RegisterOwner() {
             </div>
           </div>
 
-          <button type="submit" disabled={isLoading} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors shadow-sm disabled:opacity-70 text-sm mt-2">
+          <button type="submit" disabled={isLoading} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors shadow-sm disabled:opacity-70 text-xs md:text-sm mt-2">
             {isLoading ? 'Memproses Pendaftaran...' : 'Mulai Trial 7 Hari'}
           </button>
         </form>
 
-        <div className="mt-6 text-center text-sm text-gray-500">
+        <div className="mt-5 md:mt-6 text-center text-xs md:text-sm text-gray-500">
           Sudah punya akun? <Link href="/login" className="text-blue-600 font-semibold hover:underline">Masuk di sini</Link>
         </div>
       </div>

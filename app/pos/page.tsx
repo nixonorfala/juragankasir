@@ -95,6 +95,7 @@ export default function POS() {
   const [loading, setLoading] = useState(true)
   
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [storeId, setStoreId] = useState('')
   const [storeName, setStoreName] = useState('')
   const [storeInfo, setStoreInfo] = useState<StoreSettings>({
@@ -122,6 +123,9 @@ export default function POS() {
   
   const [activeTab, setActiveTab] = useState<'pos' | 'history' | 'expenses' | 'stock' | 'attendance'>('pos')
   
+  const [allShifts, setAllShifts] = useState<any[]>([])
+  const [showShiftModal, setShowShiftModal] = useState(false)
+
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false)
   const [attendanceStatus, setAttendanceStatus] = useState('Hadir')
   const [attendanceNotes, setAttendanceNotes] = useState('')
@@ -294,6 +298,18 @@ export default function POS() {
     }
   }
 
+  const fetchAllShifts = async () => {
+    if (!storeId) return
+    const { data: shiftData } = await supabase
+      .from('shift_schedules')
+      .select('*')
+      .eq('store_id', storeId)
+      .order('shift_date', { ascending: true })
+
+    if (shiftData) setAllShifts(shiftData)
+    setShowShiftModal(true)
+  }
+
   const handleOpenShiftSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (openingBalanceInput === '' || openingBalanceInput < 0) return
@@ -385,7 +401,6 @@ export default function POS() {
     const actualCash = Number(closingCashInput)
     const difference = actualCash - expectedCashInDrawer
 
-    // Rangkum item menu yang terjual selama shift ini[cite: 3]
     const itemSummary: { [name: string]: number } = {}
     historyList.forEach(trx => {
       if (trx.transaction_items) {
@@ -425,7 +440,6 @@ export default function POS() {
       setIsClosingShiftModal(false)
       setActiveShift(null)
 
-      // 👉 Notifikasi Telegram lengkap dengan ringkasan keuangan & rincian menu terjual
       const itemsText = itemsSoldArray.map(i => `- ${i.qty}x ${i.name}`).join('\n')
       await sendTelegramNotification(
         `🔒 *SHIFT DITUTUP*\n\n` +
@@ -772,7 +786,7 @@ export default function POS() {
     router.push('/login') 
   }
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-100">Menyiapkan Mesin Kasir...</div>
+  if (loading) return <div className="min-h-[100dvh] flex items-center justify-center bg-gray-100">Menyiapkan Mesin Kasir...</div>
 
   const categories = ['Semua', ...Array.from(new Set(products.map(p => (p.category ? p.category.toUpperCase() : 'UMUM'))))]
 
@@ -794,426 +808,503 @@ export default function POS() {
   const currentExpenses = expensesList.reduce((sum, i) => sum + i.amount, 0)
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden font-sans text-gray-900">
+    <div className="flex flex-col h-[100dvh] bg-gray-50 overflow-hidden font-sans text-gray-900 relative">
       
-      {/* SIDEBAR */}
-      <aside className={`bg-blue-800 text-white flex flex-col transition-all duration-300 shadow-xl z-20 print:hidden ${isSidebarCollapsed ? 'w-20' : 'w-72'}`}>
-        <div className="h-16 flex items-center justify-between px-4 border-b border-blue-700">
-          {!isSidebarCollapsed && (
-            <div className="overflow-hidden whitespace-nowrap">
-              <h1 className="text-lg font-bold truncate">{storeName}</h1>
-              <p className="text-xs text-blue-200">Mode Kasir</p>
-            </div>
-          )}
-          <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="p-2 bg-blue-700 rounded-lg hover:bg-blue-600 focus:outline-none mx-auto">
+      {/* Mobile Backdrop Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-55 z-40 md:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* MOBILE TOP NAVBAR */}
+      <div className="md:hidden h-14 bg-blue-800 text-white flex items-center justify-between px-4 z-30 flex-shrink-0 border-b border-blue-700 shadow-sm">
+        <div className="flex items-center space-x-3">
+          <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 bg-blue-700 rounded-lg hover:bg-blue-600 focus:outline-none">
             <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
           </button>
+          <span className="font-bold text-sm truncate">{storeName}</span>
         </div>
+        <span className="text-xs bg-blue-700 px-3 py-1 rounded-full font-medium">{userName}</span>
+      </div>
 
-        <nav className="flex-1 py-4 space-y-2 px-3 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          <button onClick={() => setActiveTab('pos')} className={`w-full flex items-center p-3 rounded-xl transition-colors ${activeTab === 'pos' ? 'bg-blue-600 shadow-sm' : 'hover:bg-blue-700 text-blue-100'}`}>
-            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-            {!isSidebarCollapsed && <span className="ml-3 font-medium whitespace-nowrap text-sm">Mesin Kasir (POS)</span>}
-          </button>
-          
-          <button onClick={() => setActiveTab('history')} className={`w-full flex items-center p-3 rounded-xl transition-colors ${activeTab === 'history' ? 'bg-blue-600 shadow-sm' : 'hover:bg-blue-700 text-blue-100'}`}>
-            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            {!isSidebarCollapsed && <span className="ml-3 font-medium whitespace-nowrap text-sm">Riwayat Transaksi</span>}
-          </button>
-
-          <button onClick={() => setActiveTab('stock')} className={`w-full flex items-center p-3 rounded-xl transition-colors ${activeTab === 'stock' ? 'bg-blue-600 shadow-sm' : 'hover:bg-blue-700 text-blue-100'}`}>
-            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
-            {!isSidebarCollapsed && <span className="ml-3 font-medium whitespace-nowrap text-sm">Cek Stok Barang</span>}
-          </button>
-
-          <button onClick={() => setActiveTab('expenses')} className={`w-full flex items-center p-3 rounded-xl transition-colors ${activeTab === 'expenses' ? 'bg-blue-600 shadow-sm' : 'hover:bg-blue-700 text-blue-100'}`}>
-            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            {!isSidebarCollapsed && <span className="ml-3 font-medium whitespace-nowrap text-sm">Pengeluaran ({expensesList.length})</span>}
-          </button>
-
-          <button onClick={() => setActiveTab('attendance')} className={`w-full flex items-center p-3 rounded-xl transition-colors ${activeTab === 'attendance' ? 'bg-blue-600 shadow-sm' : 'hover:bg-blue-700 text-blue-100'}`}>
-            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
-            {!isSidebarCollapsed && <span className="ml-3 font-medium whitespace-nowrap text-sm">Absensi Karyawan</span>}
-          </button>
-
-          {!isSidebarCollapsed && activeShift && (
-            <div className="mt-8 mb-4 p-4 bg-blue-900 rounded-xl border border-blue-700 shadow-inner">
-              <p className="text-[10px] font-semibold text-blue-300 uppercase tracking-wider mb-3">Ringkasan Shift Live</p>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between items-center">
-                  <span className="text-blue-200">Tunai</span>
-                  <span className="font-semibold">Rp {currentCashSales.toLocaleString('id-ID')}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-blue-200">Non-Tunai</span>
-                  <span className="font-semibold">Rp {currentQrisSales.toLocaleString('id-ID')}</span>
-                </div>
-                <div className="flex justify-between items-center border-t border-blue-800 pt-2">
-                  <span className="text-blue-200">Keluar</span>
-                  <span className="font-semibold text-red-300">- Rp {currentExpenses.toLocaleString('id-ID')}</span>
-                </div>
+      <div className="flex-1 flex flex-row overflow-hidden relative">
+        {/* SIDEBAR DRAWER RESPONSIF */}
+        <aside className={`bg-blue-800 text-white flex flex-col transition-all duration-300 shadow-xl z-50 print:hidden fixed md:relative inset-y-0 left-0 ${isMobileMenuOpen ? 'translate-x-0 w-72' : '-translate-x-full md:translate-x-0'} ${isSidebarCollapsed ? 'md:w-20' : 'md:w-72'} w-72 h-full flex-shrink-0`}>
+          <div className="h-16 hidden md:flex items-center justify-between px-4 border-b border-blue-700">
+            {!isSidebarCollapsed && (
+              <div className="overflow-hidden whitespace-nowrap">
+                <h1 className="text-lg font-bold truncate">{storeName}</h1>
+                <p className="text-xs text-blue-200">Mode Kasir</p>
               </div>
-            </div>
-          )}
-        </nav>
-
-        <div className="p-4 border-t border-blue-700 space-y-2">
-          {!isSidebarCollapsed && (
-            <div className="flex items-center space-x-3 mb-4 p-2 bg-blue-700 rounded-lg">
-              <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center font-bold text-sm">{userName.charAt(0)}</div>
-              <div className="overflow-hidden">
-                <p className="text-sm font-semibold truncate">{userName}</p>
-                <p className="text-[10px] text-blue-200 uppercase tracking-wider">Kasir Aktif</p>
-              </div>
-            </div>
-          )}
-          
-          <button onClick={() => setIsExpenseModalOpen(true)} className="w-full flex items-center justify-center p-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-medium transition text-sm">
-            {!isSidebarCollapsed ? '+ Kas Keluar' : '+'}
-          </button>
-          
-          <button onClick={() => setIsClosingShiftModal(true)} className="w-full flex items-center justify-center p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition text-sm">
-            {!isSidebarCollapsed ? 'Tutup Shift' : 'X'}
-          </button>
-
-          {userRole === 'owner' && (
-            <button onClick={() => router.push('/dashboard')} className="w-full flex items-center justify-center p-2 bg-blue-700 hover:bg-blue-600 text-white rounded-lg font-medium transition text-sm">
-              {!isSidebarCollapsed ? 'Dashboard Owner' : 'Dash'}
+            )}
+            <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="p-2 bg-blue-700 rounded-lg hover:bg-blue-600 focus:outline-none mx-auto">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
             </button>
-          )}
+          </div>
 
-          <button onClick={handleLogout} className="w-full flex items-center justify-center p-2 bg-transparent border border-blue-500 hover:bg-blue-700 text-white rounded-lg font-medium transition text-sm">
-            {!isSidebarCollapsed ? 'Keluar Akun' : 'Out'}
-          </button>
-        </div>
-      </aside>
+          {/* Header khusus mobile di dalam drawer */}
+          <div className="md:hidden h-16 flex items-center justify-between px-4 border-b border-blue-700 bg-blue-900">
+            <div>
+              <h1 className="text-base font-bold truncate">{storeName}</h1>
+              <p className="text-xs text-blue-200">Menu Navigasi Kasir</p>
+            </div>
+            <button onClick={() => setIsMobileMenuOpen(false)} className="w-8 h-8 bg-blue-800 rounded-full text-white font-bold flex items-center justify-center">✕</button>
+          </div>
 
-      {/* MAIN CONTENT AREA */}
-      <main className="flex-1 flex flex-col h-screen overflow-hidden print:overflow-visible">
-        {activeTab === 'pos' ? (
-          <div className="flex-1 flex overflow-hidden w-full print:hidden">
+          <nav className="flex-1 py-4 space-y-1.5 px-3 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            <button onClick={() => { setActiveTab('pos'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center p-3 rounded-xl transition-colors ${activeTab === 'pos' ? 'bg-blue-600 shadow-sm' : 'hover:bg-blue-700 text-blue-100'}`}>
+              <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+              {(!isSidebarCollapsed || window.innerWidth < 768) && <span className="ml-3 font-medium whitespace-nowrap text-sm">Mesin Kasir (POS)</span>}
+            </button>
             
-            <div className="flex-1 p-6 flex flex-col overflow-hidden bg-gray-50/50">
-              <div className="flex flex-col xl:flex-row justify-between items-center gap-4 mb-6">
-                
-                <div className="flex space-x-2 overflow-x-auto w-full xl:w-auto pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                  {categories.map(cat => (
-                    <button 
-                      key={cat} 
-                      onClick={() => setSelectedCategory(cat)} 
-                      className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${selectedCategory === cat ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-100'}`}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                </div>
-                
-                <div className="w-full xl:w-80">
-                  <div className="relative">
-                    <svg className="w-4 h-4 absolute left-3 top-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                    <input 
-                      type="text" 
-                      value={searchQuery} 
-                      onChange={(e) => setSearchQuery(e.target.value)} 
-                      placeholder="Cari nama menu..." 
-                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-sm" 
-                    />
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pr-2 content-start pb-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                {filteredProducts.length === 0 ? (
-                  <p className="text-gray-400 col-span-full text-center py-12 text-sm">Tidak ada menu yang ditemukan.</p>
-                ) : (
-                  filteredProducts.map(product => (
-                    <button 
-                      key={product.id} 
-                      onClick={() => handleProductClick(product)} 
-                      disabled={product.stock <= 0} 
-                      className={`p-4 rounded-xl border text-left flex flex-col h-full transition-all ${product.stock <= 0 ? 'bg-gray-50 opacity-60 cursor-not-allowed' : 'bg-white hover:border-blue-400 hover:shadow-sm'}`}
-                    >
-                      <span className="text-[10px] font-medium text-gray-400 uppercase mb-1 tracking-wider">{product.category || 'Umum'}</span>
-                      <span className="font-semibold text-gray-700 flex-1 text-sm leading-snug mb-3">{product.name}</span>
-                      
-                      <div className="mt-auto flex justify-between items-center w-full">
-                        <span className="text-blue-600 font-bold text-sm">Rp {product.price.toLocaleString('id-ID')}</span>
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${product.stock <= 0 ? 'bg-red-50 text-red-500' : 'bg-gray-100 text-gray-500'}`}>Stok: {product.stock}</span>
-                      </div>
-                    </button>
-                  ))
-                )}
-              </div>
-            </div>
+            <button onClick={() => { setActiveTab('history'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center p-3 rounded-xl transition-colors ${activeTab === 'history' ? 'bg-blue-600 shadow-sm' : 'hover:bg-blue-700 text-blue-100'}`}>
+              <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              {(!isSidebarCollapsed || window.innerWidth < 768) && <span className="ml-3 font-medium whitespace-nowrap text-sm">Riwayat Transaksi</span>}
+            </button>
 
-            {/* PANEL KERANJANG & OPEN BILL */}
-            <div className="w-[340px] bg-white border-l border-gray-200 flex flex-col shadow-xl z-10">
-              <div className="p-4 border-b border-gray-100 bg-white flex justify-between items-center">
-                <h2 className="text-base font-bold text-gray-800 flex items-center gap-2">
-                  <span>Pesanan</span>
-                  <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-xs font-semibold">{cart.length}</span>
-                </h2>
-                
-                <button 
-                  onClick={() => setIsOpenBillModalOpen(true)}
-                  className="relative text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1.5 rounded-lg hover:bg-amber-100 transition flex items-center gap-1"
-                >
-                  <span>Bill Simpan</span>
-                  {savedBills.length > 0 && (
-                    <span className="w-4 h-4 bg-amber-600 text-white rounded-full text-[10px] flex items-center justify-center font-bold">
-                      {savedBills.length}
-                    </span>
-                  )}
-                </button>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50/30 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                {cart.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-gray-400 text-sm text-center">
-                    <svg className="w-10 h-10 mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
-                    Belum ada pesanan.<br/>Pilih menu di sebelah kiri.
+            <button onClick={() => { setActiveTab('stock'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center p-3 rounded-xl transition-colors ${activeTab === 'stock' ? 'bg-blue-600 shadow-sm' : 'hover:bg-blue-700 text-blue-100'}`}>
+              <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+              {(!isSidebarCollapsed || window.innerWidth < 768) && <span className="ml-3 font-medium whitespace-nowrap text-sm">Cek Stok Barang</span>}
+            </button>
+
+            <button onClick={() => { setActiveTab('expenses'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center p-3 rounded-xl transition-colors ${activeTab === 'expenses' ? 'bg-blue-600 shadow-sm' : 'hover:bg-blue-700 text-blue-100'}`}>
+              <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              {(!isSidebarCollapsed || window.innerWidth < 768) && <span className="ml-3 font-medium whitespace-nowrap text-sm">Pengeluaran ({expensesList.length})</span>}
+            </button>
+
+            <button onClick={() => { setActiveTab('attendance'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center p-3 rounded-xl transition-colors ${activeTab === 'attendance' ? 'bg-blue-600 shadow-sm' : 'hover:bg-blue-700 text-blue-100'}`}>
+              <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+              {(!isSidebarCollapsed || window.innerWidth < 768) && <span className="ml-3 font-medium whitespace-nowrap text-sm">Absensi Karyawan</span>}
+            </button>
+
+            {(!isSidebarCollapsed || window.innerWidth < 768) && activeShift && (
+              <div className="mt-6 mb-4 p-3 bg-blue-900 rounded-xl border border-blue-700 shadow-inner">
+                <p className="text-[10px] font-semibold text-blue-300 uppercase tracking-wider mb-2">Ringkasan Shift Live</p>
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="text-blue-200">Tunai</span>
+                    <span className="font-semibold">Rp {currentCashSales.toLocaleString('id-ID')}</span>
                   </div>
-                ) : (
-                  cart.map(item => (
-                    <div key={item.cartId} className="bg-white p-3.5 rounded-xl border border-gray-100 shadow-sm space-y-3">
-                      <div className="flex justify-between items-start gap-2">
-                        <div className="flex-1">
-                          <p className="font-semibold text-gray-700 text-sm leading-tight">{item.name}</p>
-                          {item.selectedAddons.length > 0 && (
-                            <p className="text-[10px] text-blue-500 font-medium mt-1 bg-blue-50 inline-block px-1.5 py-0.5 rounded">
-                              +{item.selectedAddons.map(a => a.name).join(', +')}
-                            </p>
-                          )}
-                        </div>
-                        <button onClick={() => removeFromCart(item.cartId)} className="text-[10px] text-red-400 hover:text-red-600 font-semibold p-1">Hapus</button>
-                      </div>
-                      <div className="flex justify-between items-center pt-2 border-t border-gray-50">
-                        <div className="flex items-center space-x-1 bg-gray-50 border border-gray-200 rounded-md p-0.5">
-                          <button onClick={() => decreaseQuantity(item.cartId)} className="w-6 h-6 flex items-center justify-center text-gray-500 hover:bg-white rounded font-bold text-sm">-</button>
-                          <span className="text-xs font-semibold text-gray-700 w-5 text-center">{item.quantity}</span>
-                          <button onClick={() => increaseQuantity(item.cartId)} className="w-6 h-6 flex items-center justify-center text-gray-500 hover:bg-white rounded font-bold text-sm">+</button>
-                        </div>
-                        <p className="font-bold text-gray-800 text-sm">Rp {(item.finalPrice * item.quantity).toLocaleString('id-ID')}</p>
-                      </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-blue-200">Non-Tunai</span>
+                    <span className="font-semibold">Rp {currentQrisSales.toLocaleString('id-ID')}</span>
+                  </div>
+                  <div className="flex justify-between items-center border-t border-blue-800 pt-1.5">
+                    <span className="text-blue-200">Keluar</span>
+                    <span className="font-semibold text-red-300">- Rp {currentExpenses.toLocaleString('id-ID')}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </nav>
+
+          <div className="p-3 border-t border-blue-700 space-y-2">
+            {(!isSidebarCollapsed || window.innerWidth < 768) && (
+              <div className="flex items-center space-x-3 mb-2 p-2 bg-blue-700 rounded-lg">
+                <div className="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center font-bold text-xs">{userName.charAt(0)}</div>
+                <div className="overflow-hidden">
+                  <p className="text-xs font-semibold truncate">{userName}</p>
+                  <p className="text-[9px] text-blue-200 uppercase tracking-wider">Kasir Aktif</p>
+                </div>
+              </div>
+            )}
+
+            <button onClick={fetchAllShifts} className="w-full flex items-center justify-center p-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition text-xs shadow-sm">
+              {(!isSidebarCollapsed || window.innerWidth < 768) ? '📅 Jadwal Shift Toko' : '📅'}
+            </button>
+            
+            <button onClick={() => setIsExpenseModalOpen(true)} className="w-full flex items-center justify-center p-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-medium transition text-xs">
+              {(!isSidebarCollapsed || window.innerWidth < 768) ? '+ Kas Keluar' : '+'}
+            </button>
+            
+            <button onClick={() => setIsClosingShiftModal(true)} className="w-full flex items-center justify-center p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition text-xs">
+              {(!isSidebarCollapsed || window.innerWidth < 768) ? 'Tutup Shift' : 'X'}
+            </button>
+
+            {userRole === 'owner' && (
+              <button onClick={() => router.push('/dashboard')} className="w-full flex items-center justify-center p-2 bg-blue-700 hover:bg-blue-600 text-white rounded-lg font-medium transition text-xs">
+                {(!isSidebarCollapsed || window.innerWidth < 768) ? 'Dashboard Owner' : 'Dash'}
+              </button>
+            )}
+
+            <button onClick={handleLogout} className="w-full flex items-center justify-center p-2 bg-transparent border border-blue-500 hover:bg-blue-700 text-white rounded-lg font-medium transition text-xs">
+              {(!isSidebarCollapsed || window.innerWidth < 768) ? 'Keluar Akun' : 'Out'}
+            </button>
+          </div>
+        </aside>
+
+        {/* MAIN CONTENT AREA */}
+        <main className="flex-1 flex flex-col h-full overflow-hidden print:overflow-visible">
+          {activeTab === 'pos' ? (
+            <div className="flex-1 flex flex-col md:flex-row overflow-hidden w-full print:hidden">
+              
+              <div className="flex-1 p-3 md:p-6 flex flex-col overflow-hidden bg-gray-50/50">
+                <div className="flex flex-col md:flex-row justify-between items-center gap-2 mb-3 md:mb-6">
+                  
+                  <div className="flex space-x-2 overflow-x-auto w-full md:w-auto pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                    {categories.map(cat => (
+                      <button 
+                        key={cat} 
+                        onClick={() => setSelectedCategory(cat)} 
+                        className={`px-3 py-1.5 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-medium whitespace-nowrap transition-all ${selectedCategory === cat ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-100'}`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                  
+                  <div className="w-full md:w-72">
+                    <div className="relative">
+                      <svg className="w-4 h-4 absolute left-3 top-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                      <input 
+                        type="text" 
+                        value={searchQuery} 
+                        onChange={(e) => setSearchQuery(e.target.value)} 
+                        placeholder="Cari nama menu..." 
+                        className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-xs md:text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-sm" 
+                      />
                     </div>
-                  ))
-                )}
-              </div>
-
-              <div className="p-4 border-t border-gray-100 bg-white space-y-2">
-                <div className="flex justify-between items-center text-xs text-gray-500">
-                  <span>Subtotal</span>
-                  <span>Rp {subtotalPrice.toLocaleString('id-ID')}</span>
-                </div>
-                {storeInfo.tax_percentage > 0 && (
-                  <div className="flex justify-between items-center text-xs text-gray-500">
-                    <span>Pajak ({storeInfo.tax_percentage}%)</span>
-                    <span>Rp {taxAmount.toLocaleString('id-ID')}</span>
                   </div>
-                )}
-                <div className="flex justify-between items-end pt-2 border-t border-gray-100 mb-3">
-                  <span className="text-gray-700 font-bold text-sm">Total Tagihan</span>
-                  <span className="text-xl font-bold text-blue-600">Rp {totalPrice.toLocaleString('id-ID')}</span>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5 md:gap-4 pr-1 content-start pb-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                  {filteredProducts.length === 0 ? (
+                    <p className="text-gray-400 col-span-full text-center py-12 text-sm">Tidak ada menu yang ditemukan.</p>
+                  ) : (
+                    filteredProducts.map(product => (
+                      <button 
+                        key={product.id} 
+                        onClick={() => handleProductClick(product)} 
+                        disabled={product.stock <= 0} 
+                        className={`p-3 md:p-4 rounded-xl border text-left flex flex-col h-full transition-all ${product.stock <= 0 ? 'bg-gray-50 opacity-60 cursor-not-allowed' : 'bg-white hover:border-blue-400 hover:shadow-sm'}`}
+                      >
+                        <span className="text-[10px] font-medium text-gray-400 uppercase mb-1 tracking-wider">{product.category || 'Umum'}</span>
+                        <span className="font-semibold text-gray-700 flex-1 text-xs md:text-sm leading-snug mb-2 md:mb-3">{product.name}</span>
+                        
+                        <div className="mt-auto flex justify-between items-center w-full">
+                          <span className="text-blue-600 font-bold text-xs md:text-sm">Rp {product.price.toLocaleString('id-ID')}</span>
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${product.stock <= 0 ? 'bg-red-50 text-red-500' : 'bg-gray-100 text-gray-500'}`}>Stok: {product.stock}</span>
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* PANEL KERANJANG & OPEN BILL */}
+              <div className="w-full md:w-[320px] lg:w-[360px] bg-white border-t md:border-t-0 md:border-l border-gray-200 flex flex-col shadow-xl z-10 max-h-[38vh] md:max-h-full">
+                <div className="p-3 md:p-4 border-b border-gray-100 bg-white flex justify-between items-center">
+                  <h2 className="text-sm md:text-base font-bold text-gray-800 flex items-center gap-2">
+                    <span>Pesanan</span>
+                    <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-xs font-semibold">{cart.length}</span>
+                  </h2>
+                  
+                  <button 
+                    onClick={() => setIsOpenBillModalOpen(true)}
+                    className="relative text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1.5 rounded-lg hover:bg-amber-100 transition flex items-center gap-1"
+                  >
+                    <span>Bill Simpan</span>
+                    {savedBills.length > 0 && (
+                      <span className="w-4 h-4 bg-amber-600 text-white rounded-full text-[10px] flex items-center justify-center font-bold">
+                        {savedBills.length}
+                      </span>
+                    )}
+                  </button>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-2 md:space-y-3 bg-gray-50/30 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                  {cart.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-gray-400 text-xs md:text-sm text-center py-4 md:py-0">
+                      <svg className="w-8 h-8 md:w-10 md:h-10 mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+                      Belum ada pesanan.<br/>Pilih menu di sebelah kiri.
+                    </div>
+                  ) : (
+                    cart.map(item => (
+                      <div key={item.cartId} className="bg-white p-2.5 md:p-3 rounded-xl border border-gray-100 shadow-sm space-y-2">
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="flex-1">
+                            <p className="font-semibold text-gray-700 text-xs md:text-sm leading-tight">{item.name}</p>
+                            {item.selectedAddons.length > 0 && (
+                              <p className="text-[10px] text-blue-500 font-medium mt-0.5 bg-blue-50 inline-block px-1.5 py-0.5 rounded">
+                                +{item.selectedAddons.map(a => a.name).join(', +')}
+                              </p>
+                            )}
+                          </div>
+                          <button onClick={() => removeFromCart(item.cartId)} className="text-[10px] text-red-400 hover:text-red-600 font-semibold p-1">Hapus</button>
+                        </div>
+                        <div className="flex justify-between items-center pt-1.5 border-t border-gray-50">
+                          <div className="flex items-center space-x-1 bg-gray-50 border border-gray-200 rounded-md p-0.5">
+                            <button onClick={() => decreaseQuantity(item.cartId)} className="w-5 h-5 md:w-6 md:h-6 flex items-center justify-center text-gray-500 hover:bg-white rounded font-bold text-xs">-</button>
+                            <span className="text-xs font-semibold text-gray-700 w-5 text-center">{item.quantity}</span>
+                            <button onClick={() => increaseQuantity(item.cartId)} className="w-5 h-5 md:w-6 md:h-6 flex items-center justify-center text-gray-500 hover:bg-white rounded font-bold text-xs">+</button>
+                          </div>
+                          <p className="font-bold text-gray-800 text-xs md:text-sm">Rp {(item.finalPrice * item.quantity).toLocaleString('id-ID')}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <button 
-                    onClick={() => setIsSaveBillModalOpen(true)} 
-                    disabled={cart.length === 0} 
-                    className="w-full bg-amber-500 hover:bg-amber-600 disabled:bg-gray-200 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-xl shadow-sm transition-all text-xs"
-                  >
-                    Simpan Bill
-                  </button>
-                  <button 
-                    onClick={handleOpenModal} 
-                    disabled={cart.length === 0} 
-                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-xl shadow-sm transition-all text-xs"
-                  >
-                    Bayar
-                  </button>
+                <div className="p-3 md:p-4 border-t border-gray-100 bg-white space-y-2">
+                  <div className="flex justify-between items-center text-xs text-gray-500">
+                    <span>Subtotal</span>
+                    <span>Rp {subtotalPrice.toLocaleString('id-ID')}</span>
+                  </div>
+                  {storeInfo.tax_percentage > 0 && (
+                    <div className="flex justify-between items-center text-xs text-gray-500">
+                      <span>Pajak ({storeInfo.tax_percentage}%)</span>
+                      <span>Rp {taxAmount.toLocaleString('id-ID')}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-end pt-1.5 border-t border-gray-100 mb-2">
+                    <span className="text-gray-700 font-bold text-xs md:text-sm">Total Tagihan</span>
+                    <span className="text-lg md:text-xl font-bold text-blue-600">Rp {totalPrice.toLocaleString('id-ID')}</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button 
+                      onClick={() => setIsSaveBillModalOpen(true)} 
+                      disabled={cart.length === 0} 
+                      className="w-full bg-amber-500 hover:bg-amber-600 disabled:bg-gray-200 disabled:cursor-not-allowed text-white font-semibold py-2 rounded-xl shadow-sm transition-all text-xs"
+                    >
+                      Simpan Bill
+                    </button>
+                    <button 
+                      onClick={handleOpenModal} 
+                      disabled={cart.length === 0} 
+                      className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold py-2 rounded-xl shadow-sm transition-all text-xs"
+                    >
+                      Bayar
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ) : activeTab === 'stock' ? (
-          <div className="flex-1 p-8 overflow-y-auto max-w-6xl mx-auto w-full print:hidden">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-800">Informasi Stok Menu & Produk</h2>
+          ) : activeTab === 'stock' ? (
+            <div className="flex-1 p-4 md:p-8 overflow-y-auto max-w-6xl mx-auto w-full print:hidden">
+              <div className="flex justify-between items-center mb-4 md:mb-6">
+                <h2 className="text-lg md:text-xl font-bold text-gray-800">Informasi Stok Menu & Produk</h2>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[600px]">
+                  <thead>
+                    <tr className="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider border-b">
+                      <th className="p-3 md:p-4">Kategori</th>
+                      <th className="p-3 md:p-4">Nama Menu</th>
+                      <th className="p-3 md:p-4">Harga Jual</th>
+                      <th className="p-3 md:p-4 text-center">Sisa Stok</th>
+                      <th className="p-3 md:p-4 text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 text-gray-700 text-xs md:text-sm">
+                    {products.length === 0 ? (
+                      <tr><td colSpan={5} className="p-8 text-center text-gray-400">Belum ada menu terdaftar.</td></tr>
+                    ) : (
+                      products.map(p => (
+                        <tr key={p.id} className="hover:bg-gray-50">
+                          <td className="p-3 md:p-4">
+                            <span className="px-2.5 py-1 rounded text-[10px] font-bold uppercase bg-blue-50 text-blue-700 border border-blue-100">
+                              {p.category || 'UMUM'}
+                            </span>
+                          </td>
+                          <td className="p-3 md:p-4 font-semibold text-gray-800">{p.name}</td>
+                          <td className="p-3 md:p-4 font-medium text-gray-600">Rp {p.price.toLocaleString('id-ID')}</td>
+                          <td className="p-3 md:p-4 text-center font-bold text-gray-800">{p.stock}</td>
+                          <td className="p-3 md:p-4 text-center">
+                            {p.stock <= 0 ? (
+                              <span className="px-2 py-1 bg-red-100 text-red-600 text-[10px] font-bold rounded uppercase">Habis</span>
+                            ) : p.stock <= 5 ? (
+                              <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-[10px] font-bold rounded uppercase">Menipis</span>
+                            ) : (
+                              <span className="px-2 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded uppercase">Aman</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider border-b">
-                    <th className="p-4">Kategori</th>
-                    <th className="p-4">Nama Menu</th>
-                    <th className="p-4">Harga Jual</th>
-                    <th className="p-4 text-center">Sisa Stok</th>
-                    <th className="p-4 text-center">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 text-gray-700">
-                  {products.length === 0 ? (
-                    <tr><td colSpan={5} className="p-8 text-center text-gray-400">Belum ada menu terdaftar.</td></tr>
-                  ) : (
-                    products.map(p => (
-                      <tr key={p.id} className="hover:bg-gray-50">
-                        <td className="p-4">
-                          <span className="px-2.5 py-1 rounded text-[10px] font-bold uppercase bg-blue-50 text-blue-700 border border-blue-100">
-                            {p.category || 'UMUM'}
-                          </span>
-                        </td>
-                        <td className="p-4 text-sm font-semibold text-gray-800">{p.name}</td>
-                        <td className="p-4 text-sm font-medium text-gray-600">Rp {p.price.toLocaleString('id-ID')}</td>
-                        <td className="p-4 text-center text-base font-bold text-gray-800">{p.stock}</td>
-                        <td className="p-4 text-center">
-                          {p.stock <= 0 ? (
-                            <span className="px-2 py-1 bg-red-100 text-red-600 text-[10px] font-bold rounded uppercase">Habis</span>
-                          ) : p.stock <= 5 ? (
-                            <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-[10px] font-bold rounded uppercase">Menipis</span>
+          ) : activeTab === 'history' ? (
+            <div className="flex-1 p-4 md:p-8 overflow-y-auto max-w-6xl mx-auto w-full print:hidden">
+              <h2 className="text-lg md:text-xl font-bold text-gray-800 mb-4 md:mb-6">Riwayat Transaksi Shift</h2>
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[700px]">
+                  <thead>
+                    <tr className="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider border-b">
+                      <th className="p-3 md:p-4">Waktu</th>
+                      <th className="p-3 md:p-4">Metode</th>
+                      <th className="p-3 md:p-4 w-1/3">Item Pesanan</th>
+                      <th className="p-3 md:p-4">Catatan</th>
+                      <th className="p-3 md:p-4 text-right">Total Pendapatan</th>
+                      <th className="p-3 md:p-4 text-center">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 text-gray-700 text-xs md:text-sm">
+                    {historyList.length === 0 ? <tr><td colSpan={6} className="p-8 text-center text-gray-400">Belum ada transaksi.</td></tr> : historyList.map(trx => (
+                      <tr key={trx.id} className="hover:bg-gray-50">
+                        <td className="p-3 md:p-4 font-medium">{new Date(trx.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</td>
+                        <td className="p-3 md:p-4"><span className="text-xs font-semibold text-blue-600 uppercase bg-blue-50 rounded px-2 py-0.5">{trx.payment_method}</span></td>
+                        <td className="p-3 md:p-4">
+                          {trx.transaction_items && trx.transaction_items.length > 0 ? (
+                            <ul className="text-xs text-gray-600 space-y-1">
+                              {trx.transaction_items.map((item, idx) => (
+                                <li key={idx} className="flex items-start gap-1.5">
+                                  <span className="font-bold text-blue-700 bg-blue-100 px-1 py-0.5 rounded">{item.quantity}x</span> 
+                                  <span>{item.product_name}</span>
+                                </li>
+                              ))}
+                            </ul>
                           ) : (
-                            <span className="px-2 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded uppercase">Aman</span>
+                            <span className="italic text-gray-400 text-xs">Tidak ada rincian</span>
                           )}
                         </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        ) : activeTab === 'history' ? (
-          <div className="flex-1 p-8 overflow-y-auto max-w-6xl mx-auto w-full print:hidden">
-            <h2 className="text-xl font-bold text-gray-800 mb-6">Riwayat Transaksi Shift</h2>
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider border-b">
-                    <th className="p-4">Waktu</th>
-                    <th className="p-4">Metode</th>
-                    <th className="p-4 w-1/3">Item Pesanan</th>
-                    <th className="p-4">Catatan</th>
-                    <th className="p-4 text-right">Total Pendapatan</th>
-                    <th className="p-4 text-center">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 text-gray-700">
-                  {historyList.length === 0 ? <tr><td colSpan={6} className="p-8 text-center text-gray-400">Belum ada transaksi.</td></tr> : historyList.map(trx => (
-                    <tr key={trx.id} className="hover:bg-gray-50">
-                      <td className="p-4 text-sm font-medium">{new Date(trx.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</td>
-                      <td className="p-4 text-xs font-semibold text-blue-600 uppercase bg-blue-50 inline-block mt-3 ml-4 rounded px-2 py-0.5">{trx.payment_method}</td>
-                      <td className="p-4">
-                        {trx.transaction_items && trx.transaction_items.length > 0 ? (
-                          <ul className="text-xs text-gray-600 space-y-1.5">
-                            {trx.transaction_items.map((item, idx) => (
-                              <li key={idx} className="flex items-start gap-2">
-                                <span className="font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded shadow-sm">{item.quantity}x</span> 
-                                <span className="font-medium pt-0.5">{item.product_name}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <span className="italic text-gray-400 text-xs">Tidak ada rincian</span>
-                        )}
-                      </td>
-                      <td className="p-4 text-sm text-gray-500 italic">{trx.note || '-'}</td>
-                      <td className="p-4 text-sm font-bold text-right text-gray-800">Rp {trx.total_amount.toLocaleString('id-ID')}</td>
-                      <td className="p-4 text-center">
-                        <button onClick={() => setSelectedReceipt(trx)} className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors shadow-sm">Lihat / Cetak</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        ) : activeTab === 'attendance' ? (
-          <div className="flex-1 p-8 overflow-y-auto max-w-5xl mx-auto w-full print:hidden space-y-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-xl font-bold text-gray-800">Modul Absensi Karyawan</h2>
-                <p className="text-xs text-gray-500 mt-1">Cek riwayat kehadiran di bawah untuk memastikan absensi Anda sudah terekam.</p>
-              </div>
-              <button onClick={() => setIsAttendanceModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors">+ Catat Kehadiran / Absen</button>
-            </div>
-
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="p-4 bg-gray-50 border-b border-gray-200 font-semibold text-sm text-gray-700">
-                Riwayat Absensi Kehadiran Terbaru
-              </div>
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50/50 text-gray-500 text-xs font-medium uppercase tracking-wider border-b">
-                    <th className="p-4">Nama Karyawan</th>
-                    <th className="p-4">Status</th>
-                    <th className="p-4">Waktu Absen</th>
-                    <th className="p-4">Catatan</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 text-gray-700 text-sm">
-                  {attendanceList.length === 0 ? (
-                    <tr><td colSpan={4} className="p-8 text-center text-gray-400">Belum ada riwayat absensi tercatat.</td></tr>
-                  ) : (
-                    attendanceList.map(item => (
-                      <tr key={item.id} className="hover:bg-gray-50">
-                        <td className="p-4 font-semibold text-gray-800">{item.cashier_name}</td>
-                        <td className="p-4">
-                          <span className={`px-2.5 py-1 rounded text-xs font-bold uppercase ${item.status === 'Hadir' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                            {item.status}
-                          </span>
+                        <td className="p-3 md:p-4 text-gray-500 italic">{trx.note || '-'}</td>
+                        <td className="p-3 md:p-4 font-bold text-right text-gray-800">Rp {trx.total_amount.toLocaleString('id-ID')}</td>
+                        <td className="p-3 md:p-4 text-center">
+                          <button onClick={() => setSelectedReceipt(trx)} className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors shadow-sm">Lihat / Cetak</button>
                         </td>
-                        <td className="p-4 text-gray-600">{new Date(item.clock_in).toLocaleString('id-ID')}</td>
-                        <td className="p-4 text-gray-500 italic">{item.notes || '-'}</td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="flex-1 p-8 overflow-y-auto max-w-4xl mx-auto w-full print:hidden">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-800">Daftar Pengeluaran Kas</h2>
-              <button onClick={() => setIsExpenseModalOpen(true)} className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors">+ Tambah Pengeluaran</button>
-            </div>
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider border-b">
-                    <th className="p-4">Waktu</th>
-                    <th className="p-4">Keterangan</th>
-                    <th className="p-4 text-right">Nominal</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 text-gray-700">
-                  {expensesList.length === 0 ? <tr><td colSpan={3} className="p-8 text-center text-gray-400">Belum ada pengeluaran kas.</td></tr> : expensesList.map(exp => (
-                    <tr key={exp.id} className="hover:bg-gray-50">
-                      <td className="p-4 text-sm font-medium">{new Date(exp.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</td>
-                      <td className="p-4 text-sm font-medium">{exp.description}</td>
-                      <td className="p-4 text-sm font-bold text-right text-red-500">- Rp {exp.amount.toLocaleString('id-ID')}</td>
+          ) : activeTab === 'attendance' ? (
+            <div className="flex-1 p-4 md:p-8 overflow-y-auto max-w-5xl mx-auto w-full print:hidden space-y-4 md:space-y-6">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                <div>
+                  <h2 className="text-lg md:text-xl font-bold text-gray-800">Modul Absensi Karyawan</h2>
+                  <p className="text-xs text-gray-500 mt-0.5">Cek riwayat kehadiran di bawah untuk memastikan absensi Anda sudah terekam.</p>
+                </div>
+                <button onClick={() => setIsAttendanceModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs md:text-sm font-medium shadow-sm transition-colors">+ Catat Kehadiran / Absen</button>
+              </div>
+
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
+                <div className="p-3 md:p-4 bg-gray-50 border-b border-gray-200 font-semibold text-xs md:text-sm text-gray-700">
+                  Riwayat Absensi Kehadiran Terbaru
+                </div>
+                <table className="w-full text-left border-collapse min-w-[500px]">
+                  <thead>
+                    <tr className="bg-gray-50/50 text-gray-500 text-xs font-medium uppercase tracking-wider border-b">
+                      <th className="p-3 md:p-4">Nama Karyawan</th>
+                      <th className="p-3 md:p-4">Status</th>
+                      <th className="p-3 md:p-4">Waktu Absen</th>
+                      <th className="p-3 md:p-4">Catatan</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 text-gray-700 text-xs md:text-sm">
+                    {attendanceList.length === 0 ? (
+                      <tr><td colSpan={4} className="p-8 text-center text-gray-400">Belum ada riwayat absensi tercatat.</td></tr>
+                    ) : (
+                      attendanceList.map(item => (
+                        <tr key={item.id} className="hover:bg-gray-50">
+                          <td className="p-3 md:p-4 font-semibold text-gray-800">{item.cashier_name}</td>
+                          <td className="p-3 md:p-4">
+                            <span className={`px-2.5 py-1 rounded text-xs font-bold uppercase ${item.status === 'Hadir' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                              {item.status}
+                            </span>
+                          </td>
+                          <td className="p-3 md:p-4 text-gray-600">{new Date(item.clock_in).toLocaleString('id-ID')}</td>
+                          <td className="p-3 md:p-4 text-gray-500 italic">{item.notes || '-'}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 p-4 md:p-8 overflow-y-auto max-w-4xl mx-auto w-full print:hidden">
+              <div className="flex justify-between items-center mb-4 md:mb-6">
+                <h2 className="text-lg md:text-xl font-bold text-gray-800">Daftar Pengeluaran Kas</h2>
+                <button onClick={() => setIsExpenseModalOpen(true)} className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-xs md:text-sm font-medium shadow-sm transition-colors">+ Tambah Pengeluaran</button>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[450px]">
+                  <thead>
+                    <tr className="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider border-b">
+                      <th className="p-3 md:p-4">Waktu</th>
+                      <th className="p-3 md:p-4">Keterangan</th>
+                      <th className="p-3 md:p-4 text-right">Nominal</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 text-gray-700 text-xs md:text-sm">
+                    {expensesList.length === 0 ? <tr><td colSpan={3} className="p-8 text-center text-gray-400">Belum ada pengeluaran kas.</td></tr> : expensesList.map(exp => (
+                      <tr key={exp.id} className="hover:bg-gray-50">
+                        <td className="p-3 md:p-4 font-medium">{new Date(exp.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</td>
+                        <td className="p-3 md:p-4 font-medium">{exp.description}</td>
+                        <td className="p-3 md:p-4 font-bold text-right text-red-500">- Rp {exp.amount.toLocaleString('id-ID')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
+
+      {/* MODAL JADWAL SHIFT SELURUH TOKO */}
+      {showShiftModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden max-h-[85vh] flex flex-col">
+            <div className="p-4 md:p-5 bg-blue-600 text-white flex justify-between items-center">
+              <div>
+                <h3 className="text-sm md:text-base font-bold">Jadwal Shift Seluruh Karyawan</h3>
+                <p className="text-xs text-blue-100 mt-0.5">Toko: <strong>{storeName}</strong></p>
+              </div>
+              <button onClick={() => setShowShiftModal(false)} className="w-8 h-8 bg-blue-700 rounded-full text-white font-bold flex items-center justify-center">✕</button>
+            </div>
+            <div className="p-4 md:p-5 space-y-3 overflow-y-auto flex-1">
+              {allShifts.length === 0 ? (
+                <p className="text-center text-gray-400 py-8 text-sm">Belum ada jadwal shift yang ditambahkan.</p>
+              ) : (
+                allShifts.map(s => (
+                  <div key={s.id} className="p-3.5 border rounded-xl flex justify-between items-center bg-gray-50">
+                    <div>
+                      <p className="text-xs font-bold text-blue-600 uppercase tracking-wide">{s.employee_name}</p>
+                      <p className="text-xs font-semibold text-gray-800 mt-0.5">{s.shift_date}</p>
+                      <p className="text-xs text-gray-500 font-mono mt-0.5">
+                        {s.is_off_day ? 'LIBUR' : `${s.start_time} - ${s.end_time}`}
+                      </p>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-1 rounded ${s.is_off_day ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+                      {s.is_off_day ? 'OFF' : 'MASUK'}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="p-3 md:p-4 bg-gray-50 border-t text-center">
+              <button 
+                onClick={() => setShowShiftModal(false)}
+                className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold px-5 py-2.5 rounded-xl transition-colors"
+              >
+                Tutup
+              </button>
             </div>
           </div>
-        )}
-      </main>
+        </div>
+      )}
 
       {isAttendanceModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
-            <div className="p-5 bg-blue-600 text-white">
-              <h2 className="text-lg font-bold">Form Absensi Karyawan</h2>
+            <div className="p-4 md:p-5 bg-blue-600 text-white">
+              <h2 className="text-base md:text-lg font-bold">Form Absensi Karyawan</h2>
               <p className="text-xs text-blue-100 mt-1">Pilih nama staf dan masukkan PIN rahasia.</p>
             </div>
-            <form onSubmit={handleAttendanceSubmit} className="p-5 space-y-4">
+            <form onSubmit={handleAttendanceSubmit} className="p-4 md:p-5 space-y-3 md:space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wider">Nama Karyawan / Staf</label>
                 <select 
                   value={selectedStaffName} 
                   onChange={(e) => setSelectedStaffName(e.target.value)}
-                  className="w-full px-4 py-2.5 border rounded-lg text-sm bg-white outline-none text-gray-800 font-semibold"
+                  className="w-full px-3 md:px-4 py-2 border rounded-lg text-xs md:text-sm bg-white outline-none text-gray-800 font-semibold"
                 >
                   {storeStaffList.map(staff => (
                     <option key={staff.id} value={staff.name}>{staff.name}</option>
@@ -1226,7 +1317,7 @@ export default function POS() {
                 <select 
                   value={attendanceStatus} 
                   onChange={(e) => setAttendanceStatus(e.target.value)}
-                  className="w-full px-4 py-2.5 border rounded-lg text-sm bg-white outline-none text-gray-800 font-semibold"
+                  className="w-full px-3 md:px-4 py-2 border rounded-lg text-xs md:text-sm bg-white outline-none text-gray-800 font-semibold"
                 >
                   <option value="Hadir">Hadir</option>
                   <option value="Sakit">Sakit</option>
@@ -1246,7 +1337,7 @@ export default function POS() {
                   value={attendancePin} 
                   onChange={(e) => setAttendancePin(e.target.value)} 
                   placeholder="Masukkan PIN..." 
-                  className="w-full px-4 py-2.5 border rounded-lg outline-none text-gray-800 text-base font-semibold" 
+                  className="w-full px-3 md:px-4 py-2 border rounded-lg outline-none text-gray-800 text-sm font-semibold" 
                 />
               </div>
 
@@ -1257,7 +1348,7 @@ export default function POS() {
                   value={attendanceNotes} 
                   onChange={(e) => setAttendanceNotes(e.target.value)} 
                   placeholder="Keterangan tambahan..." 
-                  className="w-full px-4 py-2.5 border rounded-lg outline-none text-gray-800 text-sm" 
+                  className="w-full px-3 md:px-4 py-2 border rounded-lg outline-none text-gray-800 text-xs md:text-sm" 
                 />
               </div>
 
@@ -1273,11 +1364,11 @@ export default function POS() {
       {isSaveBillModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
-            <div className="p-5 bg-amber-500 text-white">
-              <h2 className="text-lg font-bold">Simpan Pesanan (Open Bill)</h2>
+            <div className="p-4 md:p-5 bg-amber-500 text-white">
+              <h2 className="text-base md:text-lg font-bold">Simpan Pesanan (Open Bill)</h2>
               <p className="text-xs text-amber-100 mt-1">Beri nama meja atau nama pelanggan.</p>
             </div>
-            <form onSubmit={handleSaveBillSubmit} className="p-5 space-y-4">
+            <form onSubmit={handleSaveBillSubmit} className="p-4 md:p-5 space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wider">Nama Meja / Pelanggan</label>
                 <input 
@@ -1301,24 +1392,24 @@ export default function POS() {
       {isOpenBillModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden max-h-[85vh] flex flex-col">
-            <div className="p-5 bg-amber-500 text-white flex justify-between items-center">
+            <div className="p-4 md:p-5 bg-amber-500 text-white flex justify-between items-center">
               <div>
-                <h2 className="text-lg font-bold">Daftar Bill Tersimpan</h2>
+                <h2 className="text-base md:text-lg font-bold">Daftar Bill Tersimpan</h2>
                 <p className="text-xs text-amber-100 mt-1">Pilih bill untuk ditarik kembali ke keranjang.</p>
               </div>
               <button onClick={() => setIsOpenBillModalOpen(false)} className="w-8 h-8 bg-amber-600 rounded-full text-white font-bold flex items-center justify-center">✕</button>
             </div>
-            <div className="p-5 space-y-3 overflow-y-auto flex-1">
+            <div className="p-4 md:p-5 space-y-3 overflow-y-auto flex-1">
               {savedBills.length === 0 ? (
                 <p className="text-center text-gray-400 py-8 text-sm">Tidak ada pesanan yang sedang disimpan.</p>
               ) : (
                 savedBills.map(bill => {
                   const billTotal = bill.cart.reduce((sum, item) => sum + (item.finalPrice * item.quantity), 0)
                   return (
-                    <div key={bill.id} className="p-4 rounded-xl border border-gray-200 hover:border-amber-400 bg-gray-50/50 flex justify-between items-center gap-3">
+                    <div key={bill.id} className="p-3 md:p-4 rounded-xl border border-gray-200 hover:border-amber-400 bg-gray-50/50 flex justify-between items-center gap-3">
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-gray-800 text-sm">{bill.name}</span>
+                          <span className="font-bold text-gray-800 text-xs md:text-sm">{bill.name}</span>
                           <span className="text-[10px] text-gray-400 bg-white px-2 py-0.5 rounded border">
                             {new Date(bill.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
                           </span>
@@ -1341,11 +1432,11 @@ export default function POS() {
       {selectedProductForAddon && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-            <div className="p-5 bg-blue-600 text-white">
-              <h2 className="text-lg font-bold">Kustomisasi Menu</h2>
+            <div className="p-4 md:p-5 bg-blue-600 text-white">
+              <h2 className="text-base md:text-lg font-bold">Kustomisasi Menu</h2>
               <p className="text-xs text-blue-100 mt-1">{selectedProductForAddon.product.name} - Rp {selectedProductForAddon.product.price.toLocaleString('id-ID')}</p>
             </div>
-            <div className="p-5 space-y-3 max-h-96 overflow-y-auto">
+            <div className="p-4 md:p-5 space-y-3 max-h-96 overflow-y-auto">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Pilih Varian (Opsional)</p>
               <div className="space-y-2">
                 {selectedProductForAddon.availableAddons.map(addon => {
@@ -1357,8 +1448,8 @@ export default function POS() {
                       onClick={() => toggleAddonSelection(addon)} 
                       className={`w-full flex justify-between items-center p-3 rounded-xl border text-left transition-all ${isSelected ? 'border-blue-600 bg-blue-50 text-blue-900 font-semibold' : 'border-gray-200 hover:bg-gray-50'}`}
                     >
-                      <span className="text-sm">{addon.name}</span>
-                      <span className="text-sm text-blue-600 font-bold">
+                      <span className="text-xs md:text-sm">{addon.name}</span>
+                      <span className="text-xs md:text-sm text-blue-600 font-bold">
                         +{addon.additional_price > 0 ? `Rp ${addon.additional_price.toLocaleString('id-ID')}` : 'Gratis'}
                       </span>
                     </button>
@@ -1366,7 +1457,7 @@ export default function POS() {
                 })}
               </div>
             </div>
-            <div className="p-4 bg-gray-50 border-t flex space-x-3">
+            <div className="p-3 md:p-4 bg-gray-50 border-t flex space-x-3">
               <button onClick={() => setSelectedProductForAddon(null)} className="flex-1 px-4 py-2 border rounded-lg text-gray-700 text-xs font-medium">Batal</button>
               <button onClick={confirmAddToCartWithAddons} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold">Tambah ke Pesanan</button>
             </div>
@@ -1377,12 +1468,12 @@ export default function POS() {
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4 print:hidden">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="p-5 border-b border-gray-100 flex-shrink-0"><h2 className="text-lg font-bold text-gray-800">Konfirmasi Pembayaran & Diskon</h2></div>
-            <div className="p-5 space-y-4 overflow-y-auto flex-1">
+            <div className="p-4 md:p-5 border-b border-gray-100 flex-shrink-0"><h2 className="text-base md:text-lg font-bold text-gray-800">Konfirmasi Pembayaran & Diskon</h2></div>
+            <div className="p-4 md:p-5 space-y-4 overflow-y-auto flex-1">
               
-              <div className="bg-blue-50/50 p-4 rounded-xl text-center border border-blue-50 space-y-1">
+              <div className="bg-blue-50/50 p-3 md:p-4 rounded-xl text-center border border-blue-50 space-y-1">
                 <p className="text-xs text-blue-500 font-medium">Total Tagihan Akhir</p>
-                <p className="text-2xl font-bold text-blue-700">Rp {totalPrice.toLocaleString('id-ID')}</p>
+                <p className="text-xl md:text-2xl font-bold text-blue-700">Rp {totalPrice.toLocaleString('id-ID')}</p>
                 <div className="text-[11px] text-gray-500 pt-1 space-x-2">
                   <span>Subtotal: Rp {subtotalPrice.toLocaleString('id-ID')}</span>
                   {discountAmount > 0 && <span className="text-red-500 font-semibold">| Diskon: -Rp {discountAmount.toLocaleString('id-ID')}</span>}
@@ -1390,7 +1481,7 @@ export default function POS() {
                 </div>
               </div>
 
-              <div className="p-4 bg-amber-50/50 rounded-xl border border-amber-100 space-y-3">
+              <div className="p-3 md:p-4 bg-amber-50/50 rounded-xl border border-amber-100 space-y-3">
                 <div className="flex justify-between items-center">
                   <label className="text-xs font-bold text-amber-800 uppercase tracking-wider">Diskon / Potongan Harga</label>
                   <div className="flex bg-white border border-amber-200 rounded-lg p-0.5 text-xs font-semibold">
@@ -1416,8 +1507,8 @@ export default function POS() {
                     min={0}
                     value={discountInput} 
                     onChange={(e) => setDiscountInput(e.target.value === '' ? '' : Number(e.target.value))} 
-                    placeholder={discountType === 'percent' ? 'Masukkan angka 0 - 100 (contoh: 10)' : 'Masukkan nominal rupiah (contoh: 5000)'} 
-                    className="w-full px-4 py-2.5 bg-white border border-amber-200 rounded-lg text-sm text-gray-800 font-semibold outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500" 
+                    placeholder={discountType === 'percent' ? 'Masukkan angka 0 - 100' : 'Masukkan nominal rupiah'} 
+                    className="w-full px-3 md:px-4 py-2.5 bg-white border border-amber-200 rounded-lg text-xs md:text-sm text-gray-800 font-semibold outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500" 
                   />
                 </div>
               </div>
@@ -1425,13 +1516,13 @@ export default function POS() {
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wider">Metode Pembayaran</label>
                 <div className="grid grid-cols-2 gap-2">
-                  <button onClick={() => setPaymentMethod('cash')} className={`py-2 px-3 border rounded-lg text-sm font-medium transition-colors ${paymentMethod === 'cash' ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-200 bg-white text-gray-600'}`}>Tunai</button>
-                  <button onClick={() => setPaymentMethod('debit')} className={`py-2 px-3 border rounded-lg text-sm font-medium transition-colors ${paymentMethod === 'debit' ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-200 bg-white text-gray-600'}`}>Debit / Non-Tunai</button>
+                  <button onClick={() => setPaymentMethod('cash')} className={`py-2 px-3 border rounded-lg text-xs md:text-sm font-medium transition-colors ${paymentMethod === 'cash' ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-200 bg-white text-gray-600'}`}>Tunai</button>
+                  <button onClick={() => setPaymentMethod('debit')} className={`py-2 px-3 border rounded-lg text-xs md:text-sm font-medium transition-colors ${paymentMethod === 'debit' ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-200 bg-white text-gray-600'}`}>Debit / Non-Tunai</button>
                 </div>
               </div>
 
               {paymentMethod === 'cash' && (
-                <div className="space-y-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                <div className="space-y-3 p-3 md:p-4 bg-gray-50 rounded-xl border border-gray-100">
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-1">UANG DITERIMA (RP)</label>
                     <input 
@@ -1439,12 +1530,12 @@ export default function POS() {
                       value={cashReceived} 
                       onChange={(e) => setCashReceived(e.target.value === '' ? '' : Number(e.target.value))} 
                       placeholder="0" 
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg text-gray-800 text-base font-semibold outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white" 
+                      className="w-full px-3 md:px-4 py-2 border border-gray-200 rounded-lg text-gray-800 text-sm md:text-base font-semibold outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white" 
                     />
                   </div>
-                  <div className="flex justify-between items-center pt-3 border-t border-gray-200">
-                    <span className="text-sm font-medium text-gray-500">Kembalian</span>
-                    <span className={`text-lg font-bold ${change < 0 ? 'text-red-500' : 'text-green-600'}`}>
+                  <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                    <span className="text-xs md:text-sm font-medium text-gray-500">Kembalian</span>
+                    <span className={`text-base md:text-lg font-bold ${change < 0 ? 'text-red-500' : 'text-green-600'}`}>
                       {change < 0 ? 'Uang Kurang' : `Rp ${change.toLocaleString('id-ID')}`}
                     </span>
                   </div>
@@ -1457,13 +1548,13 @@ export default function POS() {
                   value={orderNote} 
                   onChange={(e) => setOrderNote(e.target.value)} 
                   placeholder="Es dipisah, less sugar..." 
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
+                  className="w-full px-3 md:px-4 py-2 border border-gray-200 rounded-lg text-xs md:text-sm text-gray-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
                 />
               </div>
             </div>
-            <div className="p-4 bg-gray-50 border-t border-gray-100 flex space-x-3 flex-shrink-0">
-              <button onClick={() => setIsModalOpen(false)} disabled={isSubmitting} className="flex-1 px-4 py-2.5 border border-gray-200 bg-white rounded-lg text-gray-600 font-medium hover:bg-gray-100 text-sm">Batal</button>
-              <button onClick={handleConfirmPayment} disabled={isSubmitting} className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold shadow-sm text-sm">
+            <div className="p-3 md:p-4 bg-gray-50 border-t border-gray-100 flex space-x-3 flex-shrink-0">
+              <button onClick={() => setIsModalOpen(false)} disabled={isSubmitting} className="flex-1 px-4 py-2.5 border border-gray-200 bg-white rounded-lg text-gray-600 font-medium hover:bg-gray-100 text-xs md:text-sm">Batal</button>
+              <button onClick={handleConfirmPayment} disabled={isSubmitting} className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold shadow-sm text-xs md:text-sm">
                 {isSubmitting ? 'Memproses...' : 'Konfirmasi & Bayar'}
               </button>
             </div>
@@ -1474,11 +1565,11 @@ export default function POS() {
       {isOpeningShiftModal && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
-            <div className="p-6 bg-blue-600 text-white">
-              <h2 className="text-lg font-bold">Buka Shift Kasir Baru</h2>
+            <div className="p-4 md:p-6 bg-blue-600 text-white">
+              <h2 className="text-base md:text-lg font-bold">Buka Shift Kasir Baru</h2>
               <p className="text-xs text-blue-100 mt-1">Masukkan modal awal uang fisik di laci.</p>
             </div>
-            <form onSubmit={handleOpenShiftSubmit} className="p-5 space-y-4">
+            <form onSubmit={handleOpenShiftSubmit} className="p-4 md:p-5 space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wider">Modal Awal Laci (Rp)</label>
                 <input 
@@ -1488,10 +1579,10 @@ export default function POS() {
                   value={openingBalanceInput} 
                   onChange={(e) => setOpeningBalanceInput(e.target.value === '' ? '' : Number(e.target.value))} 
                   placeholder="200000" 
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg outline-none text-gray-800 text-base font-semibold focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg outline-none text-gray-800 text-sm md:text-base font-semibold focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
                 />
               </div>
-              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg shadow-sm text-sm">
+              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg shadow-sm text-xs md:text-sm">
                 Mulai Shift Sekarang
               </button>
             </form>
@@ -1502,19 +1593,19 @@ export default function POS() {
       {isExpenseModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
-            <div className="p-5 border-b border-gray-100"><h2 className="text-lg font-bold text-gray-800">Catat Pengeluaran Kas</h2></div>
-            <form onSubmit={handleAddExpense} className="p-5 space-y-4">
+            <div className="p-4 md:p-5 border-b border-gray-100"><h2 className="text-base md:text-lg font-bold text-gray-800">Catat Pengeluaran Kas</h2></div>
+            <form onSubmit={handleAddExpense} className="p-4 md:p-5 space-y-3 md:space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wider">Keterangan</label>
-                <input type="text" required value={expenseDesc} onChange={(e) => setExpenseDesc(e.target.value)} placeholder="Beli Es Batu..." className="w-full px-4 py-2 border border-gray-200 rounded-lg text-gray-800 text-sm focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none" />
+                <input type="text" required value={expenseDesc} onChange={(e) => setExpenseDesc(e.target.value)} placeholder="Beli Es Batu..." className="w-full px-3 md:px-4 py-2 border border-gray-200 rounded-lg text-gray-800 text-xs md:text-sm focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wider">Nominal (Rp)</label>
-                <input type="number" required min={1} value={expenseAmount} onChange={(e) => setExpenseAmount(e.target.value === '' ? '' : Number(e.target.value))} placeholder="15000" className="w-full px-4 py-2 border border-gray-200 rounded-lg text-gray-800 text-sm font-semibold focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none" />
+                <input type="number" required min={1} value={expenseAmount} onChange={(e) => setExpenseAmount(e.target.value === '' ? '' : Number(e.target.value))} placeholder="15000" className="w-full px-3 md:px-4 py-2 border border-gray-200 rounded-lg text-gray-800 text-xs md:text-sm font-semibold focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none" />
               </div>
               <div className="flex space-x-3 pt-2">
-                <button type="button" onClick={() => setIsExpenseModalOpen(false)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-gray-600 font-medium hover:bg-gray-50 text-sm">Batal</button>
-                <button type="submit" className="flex-1 px-4 py-2.5 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-semibold shadow-sm text-sm">Simpan</button>
+                <button type="button" onClick={() => setIsExpenseModalOpen(false)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-gray-600 font-medium hover:bg-gray-50 text-xs md:text-sm">Batal</button>
+                <button type="submit" className="flex-1 px-4 py-2.5 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-semibold shadow-sm text-xs md:text-sm">Simpan</button>
               </div>
             </form>
           </div>
@@ -1524,18 +1615,18 @@ export default function POS() {
       {isClosingShiftModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
-            <div className="p-6 bg-red-600 text-white">
-              <h2 className="text-lg font-bold">Tutup Shift Kasir</h2>
+            <div className="p-4 md:p-6 bg-red-600 text-white">
+              <h2 className="text-base md:text-lg font-bold">Tutup Shift Kasir</h2>
               <p className="text-xs text-red-100 mt-1">Masukkan total uang fisik di laci saat ini.</p>
             </div>
-            <div className="p-5 space-y-4">
+            <div className="p-4 md:p-5 space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wider">Total Uang Fisik di Laci (Rp)</label>
-                <input type="number" required min={0} value={closingCashInput} onChange={(e) => setClosingCashInput(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Hitung uang fisik..." className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-gray-800 text-base font-semibold focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none" />
+                <input type="number" required min={0} value={closingCashInput} onChange={(e) => setClosingCashInput(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Hitung uang fisik..." className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-gray-800 text-sm md:text-base font-semibold focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none" />
               </div>
               <div className="flex space-x-3 pt-2">
-                <button onClick={() => setIsClosingShiftModal(false)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-gray-600 font-medium hover:bg-gray-50 text-sm">Batal</button>
-                <button onClick={handleCloseShiftSubmit} className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold shadow-sm text-sm">Tutup Shift</button>
+                <button onClick={() => setIsClosingShiftModal(false)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-gray-600 font-medium hover:bg-gray-50 text-xs md:text-sm">Batal</button>
+                <button onClick={handleCloseShiftSubmit} className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold shadow-sm text-xs md:text-sm">Tutup Shift</button>
               </div>
             </div>
           </div>
@@ -1545,7 +1636,7 @@ export default function POS() {
       {closingReport && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 print:p-0 print:bg-white print:fixed print:inset-0">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden print:shadow-none print:w-full">
-            <div className="p-6 font-mono text-xs text-gray-800 space-y-3 bg-white print:p-4 max-h-[80vh] overflow-y-auto" id="printable-closing">
+            <div className="p-4 md:p-6 font-mono text-xs text-gray-800 space-y-3 bg-white print:p-4 max-h-[80vh] overflow-y-auto" id="printable-closing">
               <div className="text-center space-y-1 pb-3 border-b border-dashed border-gray-300">
                 <h3 className="text-base font-bold uppercase tracking-wider">LAPORAN TUTUP SHIFT</h3>
                 <p className="text-gray-500 text-[10px]">{storeInfo.name}</p>
@@ -1560,7 +1651,6 @@ export default function POS() {
                 <div className="flex justify-between text-red-600"><span>Pengeluaran Kas:</span><span>- Rp {closingReport.expenses.toLocaleString('id-ID')}</span></div>
               </div>
 
-              {/* Rincian Item Menu Terjual Selama Shift */}
               {closingReport.itemsSold && closingReport.itemsSold.length > 0 && (
                 <div className="space-y-1 pb-3 border-b border-dashed border-gray-300 text-xs">
                   <p className="font-bold text-gray-800 mb-1">Rincian Menu Terjual ({closingReport.totalTransactions} Transaksi):</p>
@@ -1583,7 +1673,7 @@ export default function POS() {
                 <p className="text-[10px] font-black text-gray-800">Powered by bit.ly/JuraganKasir</p>
               </div>
             </div>
-            <div className="p-4 bg-gray-50 border-t flex space-x-3 print:hidden">
+            <div className="p-3 md:p-4 bg-gray-50 border-t flex space-x-3 print:hidden">
               <button onClick={() => { setClosingReport(null); router.push('/login'); }} className="flex-1 px-4 py-2 border rounded-lg text-gray-700 text-xs font-medium">Selesai & Logout</button>
               <button onClick={handlePrint} className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg text-xs font-bold">Cetak Laporan</button>
             </div>
@@ -1595,7 +1685,7 @@ export default function POS() {
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 print:p-0 print:bg-white print:fixed print:inset-0">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm max-h-[90vh] flex flex-col overflow-hidden print:shadow-none print:w-full print:max-h-none">
             
-            <div className="flex-1 overflow-y-auto p-6 font-mono text-xs text-gray-800 space-y-3 bg-white print:p-4 print:overflow-visible" id="printable-receipt">
+            <div className="flex-1 overflow-y-auto p-4 md:p-6 font-mono text-xs text-gray-800 space-y-3 bg-white print:p-4 print:overflow-visible" id="printable-receipt">
               <div className="text-center space-y-1 pb-3 border-b border-dashed border-gray-300">
                 <h3 className="text-base font-bold uppercase tracking-wider">{storeInfo.name}</h3>
                 {storeInfo.address && <p className="text-gray-500 text-[9px]">{storeInfo.address}</p>}
@@ -1658,7 +1748,7 @@ export default function POS() {
               </div>
             </div>
 
-            <div className="p-4 bg-gray-50 border-t flex space-x-3 print:hidden flex-shrink-0">
+            <div className="p-3 md:p-4 bg-gray-50 border-t flex space-x-3 print:hidden flex-shrink-0">
               <button onClick={() => setSelectedReceipt(null)} className="flex-1 px-4 py-2 border rounded-lg text-gray-700 text-xs font-bold hover:bg-gray-100">Tutup</button>
               <button onClick={handlePrint} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700">Cetak Struk Sekarang</button>
             </div>

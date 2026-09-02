@@ -164,20 +164,20 @@ export default function Dashboard() {
     setLoading(false)
   }
 
-  if (!storeId) return <div className="h-full flex items-center justify-center bg-gray-50/50">Memuat Dashboard...</div>
+  if (!storeId) return <div className="h-full flex items-center justify-center bg-gray-50/50 text-xs">Memuat Dashboard...</div>
 
   return (
-    <div className="flex-1 overflow-y-auto p-8 bg-gray-50/50 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] h-full">
-      <div className="flex justify-between items-end mb-8">
+    <div className="flex-1 overflow-y-auto p-3 sm:p-8 bg-gray-50/50 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] h-full overflow-x-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Dashboard & Analitik Bisnis</h2>
-          <p className="text-gray-500 text-sm mt-1">Pantau performa keuangan dan operasional secara komprehensif.</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Dashboard & Analitik Bisnis</h2>
+          <p className="text-gray-500 text-xs sm:text-sm mt-1">Pantau performa keuangan dan operasional secara komprehensif.</p>
         </div>
         {/* DATE FILTER */}
         <select 
           value={dateRange}
           onChange={(e) => setDateRange(e.target.value)}
-          className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 shadow-sm outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full sm:w-auto px-4 py-2 bg-white border border-gray-300 rounded-lg text-xs sm:text-sm font-semibold text-gray-700 shadow-sm outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="today">Hari Ini</option>
           <option value="7d">7 Hari Terakhir</option>
@@ -187,30 +187,30 @@ export default function Dashboard() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center items-center py-20 text-gray-400 font-medium">Memuat Analitik Data...</div>
+        <div className="flex justify-center items-center py-20 text-gray-400 font-medium text-xs">Memuat Analitik Data...</div>
       ) : (
         <div className="space-y-6">
           
           {/* ROW 1: METRIC CARDS */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Total Pendapatan (Bruto)</p>
-              <h3 className="text-2xl font-black text-blue-600 mb-2">Rp {metrics.bruto.toLocaleString('id-ID')}</h3>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100">
+              <p className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Total Pendapatan (Bruto)</p>
+              <h3 className="text-lg sm:text-2xl font-black text-blue-600 mb-2 truncate">Rp {metrics.bruto.toLocaleString('id-ID')}</h3>
               <span className="inline-block bg-blue-50 text-blue-600 text-[10px] px-2 py-1 rounded font-semibold">Semua Transaksi</span>
             </div>
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Total Pengeluaran Kas</p>
-              <h3 className="text-2xl font-black text-red-500 mb-2">Rp {metrics.expenses.toLocaleString('id-ID')}</h3>
+            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100">
+              <p className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Total Pengeluaran Kas</p>
+              <h3 className="text-lg sm:text-2xl font-black text-red-500 mb-2 truncate">Rp {metrics.expenses.toLocaleString('id-ID')}</h3>
               <span className="inline-block bg-red-50 text-red-500 text-[10px] px-2 py-1 rounded font-semibold">Kas Keluar</span>
             </div>
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Laba Kotor (Gross Profit)</p>
-              <h3 className="text-2xl font-black text-green-500 mb-2">Rp {metrics.grossProfit.toLocaleString('id-ID')}</h3>
+            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100">
+              <p className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Laba Kotor (Gross Profit)</p>
+              <h3 className="text-lg sm:text-2xl font-black text-green-500 mb-2 truncate">Rp {metrics.grossProfit.toLocaleString('id-ID')}</h3>
               <span className="inline-block bg-green-50 text-green-600 text-[10px] px-2 py-1 rounded font-semibold">Omzet - HPP</span>
             </div>
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Rata-rata Struk (AOV)</p>
-              <h3 className="text-2xl font-black text-purple-600 mb-2">Rp {Math.round(metrics.aov).toLocaleString('id-ID')}</h3>
+            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100">
+              <p className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Rata-rata Struk (AOV)</p>
+              <h3 className="text-lg sm:text-2xl font-black text-purple-600 mb-2 truncate">Rp {Math.round(metrics.aov).toLocaleString('id-ID')}</h3>
               <span className="inline-block bg-purple-50 text-purple-600 text-[10px] px-2 py-1 rounded font-semibold">Per Transaksi</span>
             </div>
           </div>
@@ -219,52 +219,52 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
             {/* CHART AREA */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 lg:col-span-2">
-              <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-6">Tren Penjualan</h3>
-              <div className="h-64 w-full">
+            <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 lg:col-span-2">
+              <h3 className="text-xs sm:text-sm font-bold text-gray-800 uppercase tracking-wider mb-6">Tren Penjualan</h3>
+              <div className="h-48 sm:h-64 w-full">
                 {chartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                    <LineChart data={chartData} margin={{ top: 5, right: 10, bottom: 5, left: -20 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                      <XAxis dataKey="name" tick={{fontSize: 12, fill: '#9ca3af'}} axisLine={false} tickLine={false} />
-                      <YAxis tick={{fontSize: 12, fill: '#9ca3af'}} axisLine={false} tickLine={false} tickFormatter={(val) => `Rp ${val/1000}k`} />
+                      <XAxis dataKey="name" tick={{fontSize: 10, fill: '#9ca3af'}} axisLine={false} tickLine={false} />
+                      <YAxis tick={{fontSize: 10, fill: '#9ca3af'}} axisLine={false} tickLine={false} tickFormatter={(val) => `Rp ${val/1000}k`} />
                       <Tooltip 
                         formatter={(value: any) => [`Rp ${Number(value || 0).toLocaleString('id-ID')}`, 'Pendapatan']}
-                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px' }}
                       />
                       <Line type="monotone" dataKey="Pendapatan" stroke="#2563eb" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
                     </LineChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="h-full flex items-center justify-center text-gray-400 text-sm">Belum ada data transaksi di rentang waktu ini.</div>
+                  <div className="h-full flex items-center justify-center text-gray-400 text-xs sm:text-sm">Belum ada data transaksi di rentang waktu ini.</div>
                 )}
               </div>
             </div>
 
             {/* VOLUME & METHODS */}
             <div className="space-y-6">
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100">
                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Volume Operasional</h3>
                 <div className="flex justify-between items-center pb-4 border-b border-gray-50 mb-4">
                   <div>
-                    <p className="text-sm font-medium text-gray-500">Total Transaksi</p>
-                    <p className="text-xl font-bold text-gray-900">{metrics.totalTransactions} Struk</p>
+                    <p className="text-xs sm:text-sm font-medium text-gray-500">Total Transaksi</p>
+                    <p className="text-base sm:text-xl font-bold text-gray-900">{metrics.totalTransactions} Struk</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium text-gray-500">Produk Terjual</p>
-                    <p className="text-xl font-bold text-gray-900">{metrics.itemsSold} Pcs</p>
+                    <p className="text-xs sm:text-sm font-medium text-gray-500">Produk Terjual</p>
+                    <p className="text-base sm:text-xl font-bold text-gray-900">{metrics.itemsSold} Pcs</p>
                   </div>
                 </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center text-sm">
+                <div className="space-y-3 text-xs sm:text-sm">
+                  <div className="flex justify-between items-center">
                     <span className="font-semibold text-blue-600">Tunai</span>
                     <span className="font-bold text-gray-800">Rp {metrics.cash.toLocaleString('id-ID')}</span>
                   </div>
-                  <div className="flex justify-between items-center text-sm">
+                  <div className="flex justify-between items-center">
                     <span className="font-semibold text-teal-600">QRIS</span>
                     <span className="font-bold text-gray-800">Rp {metrics.qris.toLocaleString('id-ID')}</span>
                   </div>
-                  <div className="flex justify-between items-center text-sm">
+                  <div className="flex justify-between items-center">
                     <span className="font-semibold text-orange-500">Debit</span>
                     <span className="font-bold text-gray-800">Rp {metrics.debit.toLocaleString('id-ID')}</span>
                   </div>
@@ -277,19 +277,19 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
             {/* LOW STOCK ALERT */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-red-100">
+            <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-red-100">
               <div className="flex items-center space-x-2 mb-4">
-                <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">Peringatan Stok Menipis</h3>
+                <svg className="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                <h3 className="text-xs sm:text-sm font-bold text-gray-800 uppercase tracking-wider">Peringatan Stok Menipis</h3>
               </div>
               <div className="space-y-3">
                 {lowStockProducts.length === 0 ? (
-                  <p className="text-sm text-gray-500">Semua stok produk aman.</p>
+                  <p className="text-xs sm:text-sm text-gray-500">Semua stok produk aman.</p>
                 ) : (
                   lowStockProducts.map(p => (
-                    <div key={p.id} className="flex justify-between items-center bg-red-50 p-3 rounded-lg">
-                      <span className="text-sm font-medium text-gray-700">{p.name}</span>
-                      <span className="text-xs font-bold bg-red-500 text-white px-2 py-1 rounded">Sisa {p.stock}</span>
+                    <div key={p.id} className="flex justify-between items-center bg-red-50 p-3 rounded-lg text-xs sm:text-sm">
+                      <span className="font-medium text-gray-700 truncate mr-2">{p.name}</span>
+                      <span className="font-bold bg-red-500 text-white px-2 py-1 rounded text-[10px] sm:text-xs whitespace-nowrap">Sisa {p.stock}</span>
                     </div>
                   ))
                 )}
@@ -297,22 +297,22 @@ export default function Dashboard() {
             </div>
 
             {/* TOP PRODUCTS */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-              <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 flex items-center"><span className="mr-2">🏆</span> Produk Paling Laris</h3>
+            <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100">
+              <h3 className="text-xs sm:text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 flex items-center"><span className="mr-2">🏆</span> Produk Paling Laris</h3>
               <div className="space-y-3">
                 {topProducts.length === 0 ? (
-                  <p className="text-sm text-gray-500">Belum ada penjualan.</p>
+                  <p className="text-xs sm:text-sm text-gray-500">Belum ada penjualan.</p>
                 ) : (
                   topProducts.map((p, idx) => (
-                    <div key={idx} className="flex justify-between items-center p-2 hover:bg-gray-50 rounded-lg transition-colors border-b border-gray-50 last:border-0">
-                      <div className="flex items-center space-x-3">
-                        <span className="text-gray-400 font-bold w-4">{idx + 1}.</span>
-                        <div>
-                          <p className="text-sm font-bold text-gray-700">{p.name}</p>
-                          <p className="text-xs text-gray-500">{p.qty} Terjual</p>
+                    <div key={idx} className="flex justify-between items-center p-2 hover:bg-gray-50 rounded-lg transition-colors border-b border-gray-50 last:border-0 text-xs sm:text-sm">
+                      <div className="flex items-center space-x-3 truncate mr-2">
+                        <span className="text-gray-400 font-bold w-4 flex-shrink-0">{idx + 1}.</span>
+                        <div className="truncate">
+                          <p className="font-bold text-gray-700 truncate">{p.name}</p>
+                          <p className="text-[11px] text-gray-500">{p.qty} Terjual</p>
                         </div>
                       </div>
-                      <span className="text-sm font-bold text-blue-600">Rp {p.rev.toLocaleString('id-ID')}</span>
+                      <span className="font-bold text-blue-600 whitespace-nowrap">Rp {p.rev.toLocaleString('id-ID')}</span>
                     </div>
                   ))
                 )}
@@ -320,19 +320,19 @@ export default function Dashboard() {
             </div>
 
             {/* RECENT TRANSACTIONS */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-              <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 flex items-center"><span className="mr-2">⚡</span> Transaksi Terbaru</h3>
+            <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100">
+              <h3 className="text-xs sm:text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 flex items-center"><span className="mr-2">⚡</span> Transaksi Terbaru</h3>
               <div className="space-y-3">
                 {recentTransactions.length === 0 ? (
-                  <p className="text-sm text-gray-500">Belum ada transaksi.</p>
+                  <p className="text-xs sm:text-sm text-gray-500">Belum ada transaksi.</p>
                 ) : (
                   recentTransactions.map(trx => (
-                    <div key={trx.id} className="flex justify-between items-center p-2 border-b border-gray-50 last:border-0">
-                      <div>
-                        <p className="text-xs font-bold text-gray-500">#{trx.id.substring(0,8)}</p>
-                        <p className="text-[10px] text-gray-400">{new Date(trx.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} • Kasir: {trx.cashier_name}</p>
+                    <div key={trx.id} className="flex justify-between items-center p-2 border-b border-gray-50 last:border-0 text-xs sm:text-sm">
+                      <div className="truncate mr-2">
+                        <p className="font-bold text-gray-500 text-[11px]">#{trx.id.substring(0,8)}</p>
+                        <p className="text-[10px] text-gray-400 truncate">{new Date(trx.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} • Kasir: {trx.cashier_name}</p>
                       </div>
-                      <span className="text-sm font-bold text-gray-800">Rp {trx.total_amount.toLocaleString('id-ID')}</span>
+                      <span className="font-bold text-gray-800 whitespace-nowrap">Rp {trx.total_amount.toLocaleString('id-ID')}</span>
                     </div>
                   ))
                 )}

@@ -11,6 +11,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [loading, setLoading] = useState(true)
   const [storeName, setStoreName] = useState('Toko')
   const [ownerName, setOwnerName] = useState('')
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   useEffect(() => {
     async function checkAuth() {
@@ -50,7 +51,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-500">Memuat Dashboard...</div>
+    return <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-500 text-xs">Memuat Dashboard...</div>
   }
 
   const navLinks = [
@@ -58,7 +59,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: 'Produk & Menu', href: '/dashboard/products' },
     { name: 'Kelola Add-Ons / Varian', href: '/dashboard/addons' },
     { name: 'Karyawan / Kasir', href: '/dashboard/staff' },
-    { name: 'Absensi Karyawan', href: '/dashboard/attendance' }, // 👉 Menu Absensi Diselipkan Disini!
+    { name: 'Manajemen Shift', href: '/dashboard/shift' },
+    { name: 'Manajemen Gaji', href: '/dashboard/payroll' },
+    { name: 'Absensi Karyawan', href: '/dashboard/attendance' },
     { name: 'Laporan Penjualan', href: '/dashboard/sales' },
     { name: 'AI Advisor', href: '/dashboard/ai-advisor' },
     { name: 'Langganan & Tagihan', href: '/dashboard/billing' },
@@ -67,14 +70,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar Samping */}
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col justify-between hidden md:flex">
+    <div className="min-h-[100dvh] bg-gray-50 flex flex-col md:flex-row overflow-x-hidden">
+      {/* SIDEBAR DESKTOP */}
+      <aside className="w-64 bg-white border-r border-gray-200 flex-col justify-between hidden md:flex shrink-0">
         <div>
           <div className="h-16 flex items-center px-6 border-b border-gray-200">
             <h1 className="text-xl font-bold text-blue-600 tracking-tight">JuraganKasir</h1>
           </div>
-          <nav className="p-4 space-y-1">
+          <nav className="p-4 space-y-1 overflow-y-auto max-h-[calc(100vh-140px)] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {navLinks.map((link) => {
               const isActive = pathname === link.href
               return (
@@ -110,25 +113,83 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
+      {/* MOBILE DRAWER SIDEBAR OVERLAY */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex md:hidden">
+          <div className="w-72 bg-white h-full shadow-2xl p-5 flex flex-col justify-between animate-in slide-in-from-left duration-200">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center border-b pb-3">
+                <div>
+                  <h2 className="text-lg font-black text-blue-600">JuraganKasir</h2>
+                  <p className="text-xs text-gray-400">{storeName}</p>
+                </div>
+                <button onClick={() => setIsMobileMenuOpen(false)} className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 font-bold flex items-center justify-center">✕</button>
+              </div>
+              <nav className="space-y-1 overflow-y-auto max-h-[calc(100dvh-200px)] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                {navLinks.map((link) => {
+                  const isActive = pathname === link.href
+                  return (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`block px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                        isActive 
+                          ? 'bg-blue-600 text-white shadow-sm' 
+                          : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                      }`}
+                    >
+                      {link.name}
+                    </Link>
+                  )
+                })}
+              </nav>
+            </div>
+            <div className="border-t border-gray-100 pt-3 space-y-2">
+              <button
+                onClick={() => { setIsMobileMenuOpen(false); router.push('/pos'); }}
+                className="w-full bg-green-600 text-white text-xs font-semibold py-2.5 rounded-xl text-center"
+              >
+                Buka Mesin Kasir (POS)
+              </button>
+              <div className="flex justify-between items-center pt-1">
+                <span className="text-xs font-semibold text-gray-800">{ownerName}</span>
+                <button onClick={handleLogout} className="text-xs text-red-500 font-bold">Keluar Akun</button>
+              </div>
+            </div>
+          </div>
+          <div className="flex-1" onClick={() => setIsMobileMenuOpen(false)}></div>
+        </div>
+      )}
+
       {/* Konten Utama */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 shadow-sm z-10">
-          <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-500">Toko:</span>
-            <span className="font-bold text-gray-800">{storeName}</span>
+        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-8 shadow-sm sticky top-0 z-40">
+          <div className="flex items-center space-x-3">
+            <button 
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="md:hidden p-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 active:scale-95 transition"
+              aria-label="Buka Menu"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+            </button>
+            <div className="flex items-center space-x-2 truncate">
+              <span className="text-xs sm:text-sm text-gray-500 hidden sm:inline">Toko:</span>
+              <span className="font-bold text-gray-800 text-sm sm:text-base truncate max-w-[150px] sm:max-w-xs">{storeName}</span>
+            </div>
           </div>
           <div className="flex items-center space-x-3">
-            <span className="text-sm text-gray-600">Halo, <strong className="text-gray-900">{ownerName}</strong></span>
+            <span className="text-xs sm:text-sm text-gray-600 hidden sm:inline">Halo, <strong className="text-gray-900">{ownerName}</strong></span>
             <button
               onClick={handleLogout}
-              className="md:hidden bg-gray-100 hover:bg-red-50 text-gray-700 hover:text-red-600 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+              className="bg-gray-100 hover:bg-red-50 text-gray-700 hover:text-red-600 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
             >
               Keluar
             </button>
           </div>
         </header>
 
-        <main className="flex-1 p-8 overflow-y-auto bg-gray-50">
+        <main className="flex-1 p-3 sm:p-8 overflow-y-auto bg-gray-50">
           {children}
         </main>
       </div>

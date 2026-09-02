@@ -38,7 +38,7 @@ export default function BillingPage() {
     const text = `Halo Admin JuraganKasir, saya mau perpanjang/aktifkan langganan.\n\nNama Toko: *${store.name}*\nStore ID: *${store.id}*\nPaket Pilihan: *${planName} (Rp ${price.toLocaleString('id-ID')})*\n\nMohon instruksi pembayarannya.`
     
     const encodedText = encodeURIComponent(text)
-    const waUrl = `https://wa.me/${ADMIN_WA_NUMBER}?text=${encodedText}`
+    const waUrl = `https://wa.me/${6285646602868}?text=${encodedText}`
     
     // Redirect owner ke WhatsApp di tab baru
     window.open(waUrl, '_blank')

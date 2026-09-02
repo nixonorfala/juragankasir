@@ -22,7 +22,8 @@ export default function StaffPage() {
     name: '',
     email: '',
     password: '',
-    pin: ''
+    pin: '',
+    role: 'cashier'
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -36,13 +37,15 @@ export default function StaffPage() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return router.push('/login')
 
-      const { data: userData } = await supabase
+      const { data: userData, error: userError } = await supabase
         .from('users')
         .select('store_id, role')
         .eq('id', session.user.id)
         .single()
 
-      if (!userData || userData.role !== 'owner') return router.push('/login')
+      if (userError || !userData || userData.role !== 'owner') {
+        return router.push('/login')
+      }
 
       setStoreId(userData.store_id)
       fetchStaff(userData.store_id)
@@ -51,11 +54,12 @@ export default function StaffPage() {
   }, [router])
 
   const fetchStaff = async (sId: string) => {
+    if (!sId) return
+    // Hapus kolom 'email' dari select agar query tidak gagal total akibat kolom tidak ada di tabel public.users
     const { data, error } = await supabase
       .from('users')
       .select('id, name, role, pin')
       .eq('store_id', sId)
-      .eq('role', 'cashier')
       .order('name', { ascending: true })
 
     if (data && !error) {
@@ -67,40 +71,61 @@ export default function StaffPage() {
   const handleAddStaff = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    if (!storeId) {
+      alert('Store ID belum dimuat. Harap refresh halaman.')
+      return
+    }
+
     if (!formData.pin || formData.pin.length !== 4) {
-      alert('PIN Kasir harus tepat 4 digit angka!')
+      alert('PIN Karyawan harus tepat 4 digit angka!')
       return
     }
 
     setIsSubmitting(true)
 
     try {
+      // 1. Amankan sesi Owner saat ini agar token tidak tertimpa otomatis oleh fungsi signUp
+      const { data: sessionData } = await supabase.auth.getSession()
+      const ownerAccessToken = sessionData.session?.access_token
+      const ownerRefreshToken = sessionData.session?.refresh_token
+
+      // 2. Buat akun auth baru untuk karyawan
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
       })
 
       if (authError) throw authError
-      if (!authData.user) throw new Error('Gagal membuat akun')
+      if (!authData.user) throw new Error('Gagal membuat akun auth')
 
+      // 3. Masukkan data profil karyawan ke tabel public.users
       const { error: dbError } = await supabase
         .from('users')
         .insert([{
           id: authData.user.id,
           store_id: storeId,
           name: formData.name,
-          role: 'cashier',
+          role: formData.role,
           pin: formData.pin
         }])
 
       if (dbError) throw dbError
 
-      alert('Kasir berhasil didaftarkan!\nSistem akan otomatis mengeluarkan akun Owner untuk alasan keamanan. Silakan login kembali.')
-      await supabase.auth.signOut()
-      router.push('/login')
+      // 4. Pulihkan kembali sesi Owner agar akun tidak terlempar keluar
+      if (ownerAccessToken && ownerRefreshToken) {
+        await supabase.auth.setSession({
+          access_token: ownerAccessToken,
+          refresh_token: ownerRefreshToken,
+        })
+      }
+
+      alert('Karyawan berhasil didaftarkan!')
+      setFormData({ name: '', email: '', password: '', pin: '', role: 'cashier' })
+      fetchStaff(storeId)
 
     } catch (error: any) {
       alert('Gagal menambah karyawan: ' + error.message)
+    } finally {
       setIsSubmitting(false)
     }
   }
@@ -134,19 +159,22 @@ export default function StaffPage() {
 
   return (
     <div className="space-y-8 max-w-5xl">
-      <h2 className="text-2xl font-bold text-gray-900">Kelola Karyawan / Kasir</h2>
+      <div>
+        <h2 className="text-2xl font-bold text-gray-900">Kelola Karyawan & Jabatan</h2>
+        <p className="text-xs text-gray-500 mt-1">Tambah staf baru, atur role akses, PIN, dan kredensial sistem.</p>
+      </div>
 
-      {/* Form Tambah Kasir */}
+      {/* Form Tambah Karyawan */}
       <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Buat Akun Kasir Baru</h3>
-        <form onSubmit={handleAddStaff} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">Buat Akun Karyawan Baru</h3>
+        <form onSubmit={handleAddStaff} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nama Kasir</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nama Karyawan</label>
             <input 
               type="text" required value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-gray-900"
-              placeholder="Contoh: Budi"
+              placeholder="Contoh: Budi Santoso"
             />
           </div>
           <div>
@@ -155,7 +183,7 @@ export default function StaffPage() {
               type="email" required value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-gray-900"
-              placeholder="budi.kasir@email.com"
+              placeholder="budi@email.com"
             />
           </div>
           <div>
@@ -168,7 +196,7 @@ export default function StaffPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">PIN Kasir (4 Digit)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">PIN Karyawan (4 Digit)</label>
             <input 
               type="text" required maxLength={4} pattern="\d{4}" value={formData.pin}
               onChange={(e) => setFormData({ ...formData, pin: e.target.value.replace(/\D/g, '') })}
@@ -176,12 +204,25 @@ export default function StaffPage() {
               placeholder="1234"
             />
           </div>
-          <div className="md:col-span-2 lg:col-span-4 mt-2">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Jabatan / Role</label>
+            <select 
+              value={formData.role}
+              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-gray-900 font-semibold bg-white"
+            >
+              <option value="cashier">Cashier / Kasir</option>
+              <option value="staff">Staff / Crew</option>
+              <option value="manager">Manager / Supervisor</option>
+              <option value="owner">Owner / Admin</option>
+            </select>
+          </div>
+          <div className="md:col-span-2 lg:col-span-3 mt-2">
             <button 
               type="submit" disabled={isSubmitting}
               className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2 rounded-lg transition-colors"
             >
-              {isSubmitting ? 'Mendaftarkan...' : 'Daftarkan Kasir'}
+              {isSubmitting ? 'Mendaftarkan...' : 'Daftarkan Karyawan'}
             </button>
           </div>
         </form>
@@ -193,14 +234,14 @@ export default function StaffPage() {
           <thead>
             <tr className="bg-gray-50 text-gray-600 text-sm border-b">
               <th className="p-4">Nama Karyawan</th>
-              <th className="p-4">PIN Kasir</th>
+              <th className="p-4">PIN Absen/Kasir</th>
               <th className="p-4">Jabatan</th>
               <th className="p-4 text-center">Konfigurasi</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 text-gray-800">
             {staffList.length === 0 ? (
-              <tr><td colSpan={4} className="p-6 text-center text-gray-500">Belum ada kasir yang didaftarkan.</td></tr>
+              <tr><td colSpan={4} className="p-6 text-center text-gray-500">Belum ada karyawan yang didaftarkan.</td></tr>
             ) : (
               staffList.map((staff) => (
                 <tr key={staff.id} className="hover:bg-gray-50">
@@ -232,7 +273,7 @@ export default function StaffPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
             <div className="p-6 bg-blue-600 text-white">
-              <h2 className="text-lg font-bold">Atur PIN Kasir</h2>
+              <h2 className="text-lg font-bold">Atur PIN Karyawan</h2>
               <p className="text-xs text-blue-100 mt-1">Karyawan: <strong>{selectedStaffForPin.name}</strong></p>
             </div>
             <form onSubmit={handleUpdatePinSubmit} className="p-6 space-y-4">

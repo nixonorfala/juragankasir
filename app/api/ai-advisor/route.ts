@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     const { data: expenses } = await supabase.from('cash_expenses').select('amount, description, created_at').eq('store_id', storeId)
     const { data: products } = await supabase.from('products').select('name, price, stock, category').eq('store_id', storeId)
 
-    // 2. Kalkulasi Ringkas Data untuk Konteks AI (Dengan Explicit Type Aman)
+    // 2. Kalkulasi Ringkas Data untuk Konteks AI
     const totalOmzet = transactions?.reduce((sum: number, t: { total_amount: number }) => sum + t.total_amount, 0) || 0
     const totalExpense = expenses?.reduce((sum: number, e: { amount: number }) => sum + e.amount, 0) || 0
     const netIncome = totalOmzet - totalExpense
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
       `- ${e.description}: Rp ${e.amount}`
     ).slice(-5).join('\n') || 'Tidak ada pengeluaran'
 
-    // 3. Susun System Prompt / Context Injection Rahasia
+    // 3. Susun System Prompt / Context Injection
     const systemInstruction = `
       Anda adalah AI Financial & Business Advisor ahli untuk UMKM pencatat POS bernama "${storeData?.name || 'Toko'}".
       Berikut adalah data keuangan dan operasional toko saat ini secara real-time:
@@ -51,21 +51,42 @@ export async function POST(req: Request) {
       3. Jawab pertanyaan konsultasi dengan merujuk pada data toko di atas secara akurat. Gunakan bahasa Indonesia yang ramah, lugas, dan solutif.
     `
 
-    const chatHistory = messages.map((m: { role: string; content: string }) => ({
+    // Format chat history untuk SDK @google/genai
+    const formattedMessages = messages.map((m: { role: string; content: string }) => ({
       role: m.role === 'user' ? 'user' : 'model',
       parts: [{ text: m.content }]
     }))
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.6-flash',
-      contents: chatHistory,
-      config: {
-        systemInstruction: systemInstruction,
-        temperature: 0.7,
-      }
-    })
+    // Mekanisme Retry otomatis jika terjadi error 503 (Overload)
+    let responseText = ''
+    let retries = 3
+    let delay = 2000
 
-    return NextResponse.json({ reply: response.text })
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const response = await ai.models.generateContent({
+          model: 'gemini-3.6-flash',
+          contents: formattedMessages,
+          config: {
+            systemInstruction: systemInstruction,
+            temperature: 0.7,
+          }
+        })
+        responseText = response.text || ''
+        break
+      } catch (err: any) {
+        const is503 = err?.status === 503 || err?.message?.includes('503') || err?.message?.includes('high demand') || err?.message?.includes('UNAVAILABLE')
+        if (is503 && attempt < retries) {
+          console.warn(`Model AI sedang sibuk (Percobaan ${attempt}/${retries}), mencoba lagi dalam ${delay}ms...`)
+          await new Promise(res => setTimeout(res, delay))
+          delay *= 2
+        } else {
+          throw err
+        }
+      }
+    }
+
+    return NextResponse.json({ reply: responseText })
 
   } catch (error: any) {
     console.error('AI Advisor Error:', error)

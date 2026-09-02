@@ -85,7 +85,6 @@ export default function Login() {
     setErrorMsg('')
 
     try {
-      // Bersihkan format input jadi lowercase / slug standard (misal: Juragan Coba -> juragan-coba)
       const cleanSlug = storeSlugInput.trim().toLowerCase().replace(/\s+/g, '-')
 
       const { data: storeData, error: storeError } = await supabase
@@ -100,7 +99,6 @@ export default function Login() {
 
       setFoundStore(storeData)
 
-      // Ambil daftar kasir khusus toko ini
       const { data: staffData, error: staffError } = await supabase
         .from('users')
         .select('id, name, pin, store_id')
@@ -159,45 +157,45 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-      <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl">
+    <div className="min-h-[100dvh] flex items-center justify-center bg-gray-100 p-4 overflow-x-hidden">
+      <div className="max-w-md w-full bg-white p-6 md:p-8 rounded-2xl shadow-xl">
         
         {/* LOGO DI ATAS HALAMAN LOGIN */}
-        <div className="flex justify-center mb-6">
+        <div className="flex justify-center mb-4 md:mb-6">
           <Image 
             src="/logo-utama.png" 
             alt="JuraganKasir Logo" 
-            width={100} 
-            height={30} 
-            className="h-25 w-auto object-contain" 
+            width={120} 
+            height={36} 
+            className="h-14 md:h-16 w-auto object-contain" 
             priority
           />
         </div>
 
-        <div className="text-center mb-6">
-          <p className="text-gray-500 text-sm">Sistem Point of Sales & Manajemen Toko</p>
+        <div className="text-center mb-5 md:mb-6">
+          <p className="text-gray-500 text-xs md:text-sm">Sistem Point of Sales & Manajemen Toko</p>
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex bg-gray-100 p-1 rounded-xl mb-6">
+        <div className="flex bg-gray-100 p-1 rounded-xl mb-5 md:mb-6">
           <button 
             type="button"
             onClick={() => { setLoginMode('owner'); setErrorMsg(''); setFoundStore(null); }}
-            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${loginMode === 'owner' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`flex-1 py-2 text-xs md:text-sm font-semibold rounded-lg transition-all ${loginMode === 'owner' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
           >
             Login Owner
           </button>
           <button 
             type="button"
             onClick={() => { setLoginMode('cashier'); setErrorMsg(''); }}
-            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${loginMode === 'cashier' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`flex-1 py-2 text-xs md:text-sm font-semibold rounded-lg transition-all ${loginMode === 'cashier' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
           >
             Login Kasir (PIN)
           </button>
         </div>
 
         {errorMsg && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-xl text-center font-medium">
+          <div className="mb-4 p-3 bg-red-50 border border-red-100 text-red-600 text-xs md:text-sm rounded-xl text-center font-medium">
             {errorMsg}
           </div>
         )}
@@ -243,14 +241,14 @@ export default function Login() {
               <button 
                 type="submit" 
                 disabled={isLoading}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors shadow-sm disabled:opacity-70 text-sm mt-2"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors shadow-sm disabled:opacity-70 text-xs md:text-sm mt-2"
               >
                 {isLoading ? 'Memproses...' : 'Masuk Sebagai Owner'}
               </button>
             </form>
             
             {/* Teks Belum Punya Akun */}
-            <div className="mt-6 text-center text-sm text-gray-500">
+            <div className="mt-5 md:mt-6 text-center text-xs md:text-sm text-gray-500">
               Belum punya akun? <Link href="/register" className="text-blue-600 font-semibold hover:underline">Daftar di sini, Juragan!</Link>
             </div>
           </div>
@@ -272,7 +270,7 @@ export default function Login() {
             <button 
               type="submit" 
               disabled={isLoading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors shadow-sm disabled:opacity-70 text-sm mt-2"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors shadow-sm disabled:opacity-70 text-xs md:text-sm mt-2"
             >
               {isLoading ? 'Memeriksa Kode...' : 'Lanjutkan'}
             </button>
@@ -280,7 +278,7 @@ export default function Login() {
         ) : (
           /* LANGKAH 2: PILIH KASIR & MASUKKAN PIN */
           <form onSubmit={handleCashierPinLogin} className="space-y-4">
-            <div className="bg-blue-50 p-3 rounded-xl flex justify-between items-center text-sm">
+            <div className="bg-blue-50 p-3 rounded-xl flex justify-between items-center text-xs md:text-sm">
               <span className="text-gray-600">Toko: <strong className="text-blue-700">{foundStore.name}</strong></span>
               <button 
                 type="button" 
@@ -297,7 +295,7 @@ export default function Login() {
                 value={selectedCashierId}
                 onChange={(e) => setSelectedCashierId(e.target.value)}
                 required
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-gray-900 text-sm bg-white"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-gray-900 text-xs md:text-sm bg-white"
               >
                 <option value="">-- Pilih Kasir --</option>
                 {cashierList.map(c => (
@@ -322,7 +320,7 @@ export default function Login() {
             <button 
               type="submit" 
               disabled={isLoading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors shadow-sm disabled:opacity-70 text-sm mt-2"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors shadow-sm disabled:opacity-70 text-xs md:text-sm mt-2"
             >
               {isLoading ? 'Memverifikasi...' : 'Masuk Mesin Kasir'}
             </button>
